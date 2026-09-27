@@ -77,6 +77,7 @@ vi.mock("../../convex/_generated/api", () => ({
       list: "goals.list",
       listLinks: "goals.listLinks",
       upsert: "goals.upsert",
+      bulkUpsert: "goals.bulkUpsert",
       remove: "goals.remove",
     },
     sync: {
