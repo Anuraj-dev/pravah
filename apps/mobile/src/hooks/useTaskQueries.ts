@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { recordDiagnosticEvent } from "../lib/diagnostics";
+import { collectServerImageIds } from "../lib/taskImageLibrary";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { MobileTask } from "../components/TaskCard";
@@ -136,6 +137,46 @@ export function useTaskQueries({
     includeImages,
   ]);
 
+  const queryRows = useMemo(() => {
+    if (!isAuthenticated) return null;
+    const timelineRows = timelineQuery && typeof timelineQuery === "object"
+      ? Object.values(timelineQuery as Record<string, unknown>).reduce<number>(
+        (sum, day) => sum + (Array.isArray(day) ? day.length : 0),
+        0,
+      )
+      : null;
+    return {
+      inbox: Array.isArray(inboxQuery) ? inboxQuery.length : null,
+      timeline: timelineRows,
+      completedHistory: includeCompletedHistory
+        ? (Array.isArray(completedHistoryQuery) ? completedHistoryQuery.length : null)
+        : null,
+      completedToday: includeCompletedToday && !includeCompletedHistory
+        ? (Array.isArray(completedTodayQuery) ? completedTodayQuery.length : null)
+        : null,
+      imageTasks: includeImages
+        ? (Array.isArray(imageCollectionsQuery) ? imageCollectionsQuery.length : null)
+        : null,
+    };
+  }, [
+    completedHistoryQuery,
+    completedTodayQuery,
+    imageCollectionsQuery,
+    inboxQuery,
+    includeCompletedHistory,
+    includeCompletedToday,
+    includeImages,
+    isAuthenticated,
+    timelineQuery,
+  ]);
+  const queryRowsKey = queryRows ? JSON.stringify(queryRows) : null;
+  useEffect(() => {
+    if (!queryRowsKey) return;
+    const rows = JSON.parse(queryRowsKey) as Record<string, number | null>;
+    if (Object.values(rows).every((value) => value === null)) return;
+    recordDiagnosticEvent("convex_query_rows", "debug", rows, "sync");
+  }, [queryRowsKey]);
+
   const imageCollections = useMemo(() => {
     const map = new Map<string, MobileTask["imageCollection"]>();
     for (const item of (imageCollectionsQuery ?? []) as Array<{
@@ -228,6 +269,10 @@ export function useTaskQueries({
     (includeCompletedToday && !includeCompletedHistory && completedTodayQuery === undefined);
   const isAllTasksReady = !includeCompletedHistory || completedHistoryQuery !== undefined;
   const isImageCollectionsReady = !includeImages || imageCollectionsQuery !== undefined;
+  const retainedImageIds = useMemo(
+    () => (isAuthenticated && includeImages ? collectServerImageIds(imageCollectionsQuery) : null),
+    [imageCollectionsQuery, includeImages, isAuthenticated],
+  );
 
   return {
     today,
@@ -248,6 +293,7 @@ export function useTaskQueries({
     isCompletedLoading,
     isAllTasksReady,
     isImageCollectionsReady,
+    retainedImageIds,
   };
 }
 

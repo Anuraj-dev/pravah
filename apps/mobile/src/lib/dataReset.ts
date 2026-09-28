@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import { clearKairoConfig } from "./kairoConfig";
+import { deleteLocalTaskImageLibrary } from "./taskImageNative";
 import { cancelAllRemindersAsync } from "./syncReminders";
 import { classifyError, mobileLogger } from "./logger";
 
@@ -51,6 +52,12 @@ export async function wipeLocalAppData(): Promise<{ removedAsync: number; remove
     }
   } catch (error) {
     mobileLogger.warn("wipe_async_storage_failed", { errorType: classifyError(error) });
+  }
+
+  try {
+    deleteLocalTaskImageLibrary();
+  } catch (error) {
+    mobileLogger.warn("wipe_task_images_failed", { errorType: classifyError(error) });
   }
 
   for (const key of SECURE_STORE_KEYS) {

@@ -90,11 +90,13 @@ type TaskCardProps = {
   swipeActionsEnabled?: boolean;
   resolveTaskImage?: (
     taskImageId: string,
-    variant: "card" | "detail"
+    variant: "card" | "detail",
+    options?: { download?: boolean },
   ) => Promise<
     | { kind: "ready"; url: string }
     | { kind: "not_found" }
     | { kind: "state"; state: string }
+    | { kind: "deferred" }
   >;
 };
 

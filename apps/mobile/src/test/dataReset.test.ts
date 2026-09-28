@@ -31,6 +31,11 @@ vi.mock("../lib/logger", () => ({
   mobileLogger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() },
 }));
 
+const deleteLocalTaskImageLibrary = vi.fn();
+vi.mock("../lib/taskImageNative", () => ({
+  deleteLocalTaskImageLibrary: () => deleteLocalTaskImageLibrary(),
+}));
+
 let wipeLocalAppData: typeof import("../lib/dataReset").wipeLocalAppData;
 
 describe("wipeLocalAppData", () => {
@@ -51,6 +56,7 @@ describe("wipeLocalAppData", () => {
     expect(clearKairoConfig).toHaveBeenCalledTimes(1);
     expect(multiRemove).toHaveBeenCalledWith(["pravah_a", "pravah_b"]);
     expect(deleteItemAsync).toHaveBeenCalledTimes(2);
+    expect(deleteLocalTaskImageLibrary).toHaveBeenCalledTimes(1);
     expect(cancelAllRemindersAsync.mock.invocationCallOrder[0]).toBeLessThan(
       multiRemove.mock.invocationCallOrder[0],
     );

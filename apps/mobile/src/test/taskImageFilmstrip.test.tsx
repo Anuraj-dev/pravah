@@ -262,6 +262,21 @@ describe("TaskImageFilmstrip", () => {
     expect(screen.queryByRole("img")).toBeNull();
   });
 
+  it("does not fetch a list image that is not already on the phone", async () => {
+    const resolveDelivery = vi.fn(async () => ({ kind: "deferred" as const }));
+    render(
+      <TaskImageFilmstrip
+        surface="inbox"
+        images={[{ taskImageId: "image-1", position: 0, state: "ready" }]}
+        resolveDelivery={resolveDelivery}
+      />
+    );
+
+    await waitFor(() => expect(screen.getByText("Open to load")).toBeTruthy());
+    expect(resolveDelivery).toHaveBeenCalledWith("image-1", "card", { download: false });
+    expect(screen.queryByText("Image unavailable")).toBeNull();
+  });
+
   it("keeps image actions ordered, editable, removable, and replaceable up to five", () => {
     const onCaptionChange = vi.fn();
     const onReorder = vi.fn();
