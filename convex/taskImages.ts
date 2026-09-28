@@ -1001,11 +1001,14 @@ export async function getClaimedTaskForUpload(
 }
 
 export const listWorkspaceImageCollections = query({
-  args: { observedAt: v.number() },
+  args: { observedAt: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const ownerTokenIdentifier = await requireTokenIdentifier(ctx);
-    // The client rounds this. Date.now() inside the query would bust the cache.
-    const observedAt = args.observedAt;
+    // New clients pass a 5-minute bucket. A missing value is an older app,
+    // which still has to read the clock once so the recoverable window works.
+    const observedAt =
+      args.observedAt ??
+      Math.floor(Date.now() / (5 * 60 * 1000)) * (5 * 60 * 1000);
     const images = await ctx.db
       .query("taskImages")
       .withIndex("by_owner_task", (q) => q.eq("ownerTokenIdentifier", ownerTokenIdentifier))
