@@ -1,12 +1,13 @@
 /**
  * useTaskQueries
  *
- * Owns Convex query subscriptions for the task workspace. Core tab data stays
- * live while authenticated; the expensive full-corpus subscription is loaded
- * only for features that need workspace-wide context.
+ * Inbox and timeline stay live. Completed history, today's completed count,
+ * and image collections subscribe only when the caller asks. The unfiltered
+ * owner scan is not used.
  */
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { recordDiagnosticEvent } from "../lib/diagnostics";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { MobileTask } from "../components/TaskCard";
@@ -55,15 +56,41 @@ export function buildScheduledTasks(docs: MobileTask[]): MobileTask[] {
     );
 }
 
+const IMAGE_OBSERVED_AT_BUCKET_MS = 5 * 60 * 1000;
+
+function useImageObservedAt(enabled: boolean) {
+  const [observedAt, setObservedAt] = useState(
+    () => Math.floor(Date.now() / IMAGE_OBSERVED_AT_BUCKET_MS) * IMAGE_OBSERVED_AT_BUCKET_MS
+  );
+  useEffect(() => {
+    if (!enabled) return;
+    const timer = setInterval(() => {
+      setObservedAt(Math.floor(Date.now() / IMAGE_OBSERVED_AT_BUCKET_MS) * IMAGE_OBSERVED_AT_BUCKET_MS);
+    }, IMAGE_OBSERVED_AT_BUCKET_MS);
+    return () => clearInterval(timer);
+  }, [enabled]);
+  return observedAt;
+}
+
 type UseTaskQueriesOptions = {
   /** Pass null/undefined when the session is not yet available — all queries skip. */
   isAuthenticated: boolean;
-  /** Fetch all tasks only when features (e.g. Kairo) need full context. */
-  includeAllTasks?: boolean;
+  /** Goals and Progress. The full completedAt range. */
+  includeCompletedHistory?: boolean;
+  /** Timeline progress for today. One deadline, not the history range. */
+  includeCompletedToday?: boolean;
+  /** Task cards. Skipped on screens that do not show images. */
+  includeImages?: boolean;
 };
 
-export function useTaskQueries({ isAuthenticated, includeAllTasks = true }: UseTaskQueriesOptions) {
+export function useTaskQueries({
+  isAuthenticated,
+  includeCompletedHistory = false,
+  includeCompletedToday = false,
+  includeImages = false,
+}: UseTaskQueriesOptions) {
   const { today, tomorrow, weekEnd, queryEndDate } = buildTimelineWindow(new Date());
+  const imageObservedAt = useImageObservedAt(isAuthenticated && includeImages);
 
   const inboxQuery = useQuery(
     api.tasks.listTasks,
@@ -78,19 +105,36 @@ export function useTaskQueries({ isAuthenticated, includeAllTasks = true }: UseT
     isAuthenticated ? { endDate: queryEndDate } : "skip"
   );
 
-  const completedQuery = useQuery(
+  const completedHistoryQuery = useQuery(
     api.tasks.listTasks,
-    isAuthenticated ? { status: "completed" } : "skip"
+    isAuthenticated && includeCompletedHistory ? { status: "completed" } : "skip"
   );
-
-  const allTasksQuery = useQuery(
+  const completedTodayQuery = useQuery(
     api.tasks.listTasks,
-    isAuthenticated && includeAllTasks ? {} : "skip"
+    isAuthenticated && includeCompletedToday && !includeCompletedHistory
+      ? { status: "completed", date: today }
+      : "skip"
   );
   const imageCollectionsQuery = useQuery(
     api.taskImages.listWorkspaceImageCollections,
-    isAuthenticated ? {} : "skip"
+    isAuthenticated && includeImages ? { observedAt: imageObservedAt } : "skip"
   );
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    recordDiagnosticEvent("convex_subscriptions", "debug", {
+      inbox: true,
+      timeline: true,
+      completedHistory: includeCompletedHistory,
+      completedToday: includeCompletedToday && !includeCompletedHistory,
+      images: includeImages,
+    }, "sync");
+  }, [
+    isAuthenticated,
+    includeCompletedHistory,
+    includeCompletedToday,
+    includeImages,
+  ]);
 
   const imageCollections = useMemo(() => {
     const map = new Map<string, MobileTask["imageCollection"]>();
@@ -125,17 +169,23 @@ export function useTaskQueries({ isAuthenticated, includeAllTasks = true }: UseT
   }, [timelineQuery, withImages]);
 
   const completedTasks = useMemo<MobileTask[]>(() => {
+    const source = (includeCompletedHistory ? completedHistoryQuery : completedTodayQuery) as
+      | MobileTask[]
+      | undefined;
     return (
-      (completedQuery as MobileTask[] | undefined)
+      source
         ?.map(withImages)
         .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0)) ?? []
     );
-  }, [completedQuery, withImages]);
+  }, [completedHistoryQuery, completedTodayQuery, includeCompletedHistory, withImages]);
 
-  const allWorkspaceTasks = useMemo<MobileTask[]>(
-    () => (allTasksQuery as MobileTask[] | undefined)?.map(withImages) ?? [],
-    [allTasksQuery, withImages]
-  );
+  const allWorkspaceTasks = useMemo<MobileTask[]>(() => {
+    const byId = new Map<string, MobileTask>();
+    for (const task of [...inboxTasks, ...scheduledTasks, ...completedTasks]) {
+      byId.set(String(task._id), task);
+    }
+    return [...byId.values()];
+  }, [completedTasks, inboxTasks, scheduledTasks]);
 
   const timelineSections = useMemo<[string, MobileTask[]][]>(() => {
     const grouped = new Map<string, MobileTask[]>();
@@ -173,9 +223,11 @@ export function useTaskQueries({ isAuthenticated, includeAllTasks = true }: UseT
 
   const isInboxLoading = inboxQuery === undefined;
   const isTimelineLoading = timelineQuery === undefined;
-  const isCompletedLoading = completedQuery === undefined;
-  const isAllTasksReady = !includeAllTasks || allTasksQuery !== undefined;
-  const isImageCollectionsReady = imageCollectionsQuery !== undefined;
+  const isCompletedLoading =
+    (includeCompletedHistory && completedHistoryQuery === undefined) ||
+    (includeCompletedToday && !includeCompletedHistory && completedTodayQuery === undefined);
+  const isAllTasksReady = !includeCompletedHistory || completedHistoryQuery !== undefined;
+  const isImageCollectionsReady = !includeImages || imageCollectionsQuery !== undefined;
 
   return {
     today,

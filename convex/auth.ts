@@ -46,7 +46,13 @@ export function createAuth(ctx: GenericCtx<DataModel>) {
     },
     plugins: [
       crossDomain({ siteUrl }),
-      convex({ authConfig }),
+      convex({
+        authConfig,
+        // The login session is already 7 days. This is the Convex JWT.
+        // A 15-minute default re-authenticates the socket and re-runs every
+        // live query. One day keeps a revoked token bounded.
+        jwt: { expirationSeconds: 60 * 60 * 24 },
+      }),
     ],
   });
 }

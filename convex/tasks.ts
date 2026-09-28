@@ -332,6 +332,14 @@ export async function listTasksForOwner(
       listTasksByLegacyStatus(ctx, tokenIdentifier, "scheduled"),
     ]);
     tasks = dedupeTasks([...deadlineTasks, ...legacyScheduledTasks]);
+  } else if (args.status === "completed" && args.date) {
+    // One deadline, then keep the completed rows. The open completedAt range
+    // is the history screen. A progress count for today does not need it.
+    const [deadlineTasks, legacyCompletedTasks] = await Promise.all([
+      listTasksByExactDeadline(ctx, tokenIdentifier, args.date),
+      listTasksByLegacyStatus(ctx, tokenIdentifier, "completed"),
+    ]);
+    tasks = dedupeTasks([...deadlineTasks, ...legacyCompletedTasks]);
   } else if (args.status === "completed") {
     const [completedTasks, legacyCompletedTasks] = await Promise.all([
       listTasksByCompletedAtRange(ctx, tokenIdentifier),

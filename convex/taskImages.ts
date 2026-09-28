@@ -1001,20 +1001,19 @@ export async function getClaimedTaskForUpload(
 }
 
 export const listWorkspaceImageCollections = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { observedAt: v.number() },
+  handler: async (ctx, args) => {
     const ownerTokenIdentifier = await requireTokenIdentifier(ctx);
-    const observedAt = Date.now();
-    const [tasks, images] = await Promise.all([
-      ctx.db
-        .query("tasks")
-        .withIndex("by_owner", (q) => q.eq("ownerTokenIdentifier", ownerTokenIdentifier))
-        .collect(),
-      ctx.db
-        .query("taskImages")
-        .withIndex("by_owner_task", (q) => q.eq("ownerTokenIdentifier", ownerTokenIdentifier))
-        .collect(),
-    ]);
+    // The client rounds this. Date.now() inside the query would bust the cache.
+    const observedAt = args.observedAt;
+    const images = await ctx.db
+      .query("taskImages")
+      .withIndex("by_owner_task", (q) => q.eq("ownerTokenIdentifier", ownerTokenIdentifier))
+      .collect();
+    const taskIds = [...new Set(images.map((image) => image.taskId))];
+    const tasks = (
+      await Promise.all(taskIds.map((taskId) => ctx.db.get(taskId)))
+    ).filter((task): task is Doc<"tasks"> => task !== null);
     const byTask = new Map<Id<"tasks">, Doc<"taskImages">[]>();
     for (const image of images) {
       const taskId = image.taskId;

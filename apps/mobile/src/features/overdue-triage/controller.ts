@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { classifyError, createActionId, mobileLogger } from "../../lib/logger";
 import { feedback } from "../../lib/feedback";
 import type { Id } from "../../../../../convex/_generated/dataModel";
@@ -51,6 +51,7 @@ type UseOverdueTriageControllerOptions = {
   restoreTaskMutation: RestoreTaskMutation;
   showToast: ShowToast;
   enqueueRetry: RetryEnqueue;
+  onOpenChange?: (open: boolean) => void;
 };
 
 export function useOverdueTriageController({
@@ -65,8 +66,12 @@ export function useOverdueTriageController({
   restoreTaskMutation,
   showToast,
   enqueueRetry,
+  onOpenChange,
 }: UseOverdueTriageControllerOptions) {
   const [isOverdueSheetOpen, setIsOverdueSheetOpen] = useState(false);
+  useEffect(() => {
+    onOpenChange?.(isOverdueSheetOpen);
+  }, [isOverdueSheetOpen, onOpenChange]);
   const [previewGoalId, setPreviewGoalId] = useState<string | null>(null);
   const [applyDeadline, setApplyDeadline] = useState(false);
 
