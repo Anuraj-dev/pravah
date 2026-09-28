@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "raja.pravah-todo",
   "name": "Pravah Todo",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "author": "Raja",
   "license": "MIT",
   "description": "A full front-end for the Pravah CLI: today, inbox, upcoming, and goals from the bar.",
@@ -19,9 +19,17 @@
     "defaults": {
       "pollIntervalSec": 300,
       "defaultTab": "today",
-      "showCompleted": "On"
+      "showCompleted": "On",
+      "transport": "cli"
     },
     "schema": [
+      {
+        "key": "transport",
+        "type": "enum",
+        "label": "Read transport",
+        "options": ["cli", "watch"],
+        "defaultValue": "cli"
+      },
       {
         "key": "pollIntervalSec",
         "type": "integer",

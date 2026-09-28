@@ -19,6 +19,14 @@ ShellRoot {
     cli: Quickshell.shellDir + "/pravah"
   }
 
+  // Second data layer pinned to the watch transport, so the snapshot parsing
+  // and the no-HTTP-fallback rule are covered without a live `pravah watch`.
+  PravahData {
+    id: watchStore
+    cli: Quickshell.shellDir + "/pravah"
+    transport: "watch"
+  }
+
   Process {
     id: logCat
     command: ["cat", String(Quickshell.env("PRAVAH_FAKE_LOG") || "")]
@@ -346,7 +354,65 @@ ShellRoot {
         ok("write accepted", started === true)
         return
       }
+      if (phase === 6) {
+        // The watch store must resolve its snapshot path and load it without
+        // ever issuing a `tasks list` or `goals list` read.
+        if (!watchStore.snapshotResolved || watchStore.snapshotPath === "") return
+        if (!watchStore.initialized) return
+        if (watchStore.syncing) return
+        try {
+          root.runWatchTests()
+        } catch (e) {
+          root.ok("runWatchTests threw: " + e, false)
+          boot.stop()
+          root.finish()
+          return
+        }
+        boot.stop()
+        root.finish()
+        return
+      }
     }
+  }
+
+  // Watch transport: the snapshot is the only read source, and a snapshot that
+  // stops advancing is surfaced rather than papered over.
+  function runWatchTests() {
+    eq("watch path resolved from the CLI", watchStore.snapshotPath, Quickshell.env("PRAVAH_FAKE_SNAPSHOT") || "")
+    eq("watch tasks loaded", watchStore.allTasks.length, 2)
+    eq("watch goals loaded", watchStore.goals.length, 1)
+    eq("watch snapshot day adopted", watchStore.today, "2026-05-04")
+    eq("watch no error", watchStore.lastError, "")
+    eq("watch snapshot not stale", watchStore.snapshotStale, false)
+
+    var overdue = 0
+    for (var i = 0; i < watchStore.overdueTasks.length; i++) overdue += 1
+    eq("watch overdue horizon", overdue, 1)
+    var inbox = 0
+    for (var j = 0; j < watchStore.inboxTasks.length; j++) inbox += 1
+    eq("watch inbox horizon", inbox, 1)
+
+    // Goal stitching: the snapshot goal carries counters, not embedded tasks,
+    // so the widget rebuilds activeTasks from each task's goalId.
+    var goal = watchStore.goals[0]
+    eq("watch goal progress completed", goal.progress.completed, 2)
+    eq("watch goal progress active", goal.progress.active, 1)
+    eq("watch goal linked task count", goal.activeTasks.length, 1)
+
+    // A stale snapshot must be reported, not silently accepted.
+    watchStore.applySnapshotText(JSON.stringify({
+      version: 1, generatedAt: Date.now() - 3600000, day: "2026-05-04",
+      counts: {}, tasks: [], goals: []
+    }))
+    eq("stale snapshot flagged", watchStore.snapshotStale, true)
+    ok("stale snapshot reports an error", watchStore.lastError !== "")
+
+    // An unreadable snapshot is a hard error, not a silent empty board.
+    watchStore.applySnapshotText("{not json")
+    ok("malformed snapshot reports an error", watchStore.lastError !== "")
+
+    // The point of the watch transport: no HTTP reads at all.
+    ok("watch store never spawned a read", watchStore._readQueue.length === 0)
   }
 
   function writeLines(log, needle) {

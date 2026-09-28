@@ -43,6 +43,34 @@ pravah goals list
 pravah agent context --json
 ```
 
+## Live watch mode
+
+Every command above is a one-shot HTTP request. `pravah watch` is the exception:
+it holds a Convex websocket open as the same owner and keeps one snapshot file
+current, so a status bar or widget can read state without polling or spawning a
+process per update.
+
+```sh
+pravah watch                    # maintain the snapshot until Ctrl-C
+pravah watch --path             # where the snapshot lives
+pravah watch --print            # print it once, no network call
+pravah watch --format waybar    # stream {text,tooltip,class} per update
+```
+
+The snapshot path is `$XDG_RUNTIME_DIR/pravah/snapshot.json`, falling back to
+`$TMPDIR/pravah-$UID/snapshot.json` and then `/tmp/pravah-$UID/snapshot.json`.
+It is replaced atomically and kept at mode `0600`. A pid lock in the same
+directory prevents two daemons from writing the same file.
+
+The automation credential is never placed on the socket. `pravah watch`
+exchanges it over HTTP for a 15-minute Convex token scoped to the credential's
+own owner, and refreshes that token before it expires. Revoking a credential
+therefore takes effect within 15 minutes.
+
+Reads are subscribe-only. `pravah watch` never silently falls back to polling,
+so if the daemon dies, consumers see a stale snapshot rather than plausible data
+that hides the failure. Writes always go over HTTP, in watch mode too.
+
 ## v1 migration
 
 CLI v2 is intentionally breaking. API-shaped commands and held integrations

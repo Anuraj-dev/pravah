@@ -5,6 +5,8 @@ import { executeCommand, isCliTextResult, normalizeCommandPositionals, resolveCo
 import { emitError, emitSuccess } from "./envelope";
 import { toCliError } from "./errors";
 import { renderHumanResult } from "./renderer";
+import { planWatchCommand, runWatchCommand } from "./watchCommand";
+import { validateCommandArgs } from "./commandUtils";
 
 function assertBunRuntime() {
   if (!("Bun" in globalThis)) {
@@ -21,6 +23,16 @@ async function main() {
 
   try {
     command = normalizedArgs.options.help === true || normalizedArgs.positionals[0] === "help" ? "help" : normalizedArgs.positionals.length ? resolveCommand(normalizedArgs) : "help";
+
+    if (command === "watch") {
+      // `watch` streams until interrupted, so it bypasses the one-shot result
+      // path below entirely.
+      validateCommandArgs("watch", normalizedArgs);
+      planWatchCommand(normalizedArgs);
+      await runWatchCommand(normalizedArgs);
+      return;
+    }
+
     const data = await executeCommand({ command, json }, normalizedArgs);
     if (isCliTextResult(data)) {
       process.stdout.write(`${data.text}\n`);

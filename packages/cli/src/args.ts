@@ -1,5 +1,27 @@
 import type { ParsedArgs } from "./types";
 
+/**
+ * `--opt=value` is split into `opt` + `value` so it behaves the same as
+ * `--opt value`. Without this, `--format=waybar` is read as a bare boolean flag
+ * named `format=waybar` and the command reports an unknown option.
+ */
+export function normalizeEqualsOptions(
+  options: Record<string, string | boolean>
+): Record<string, string | boolean> {
+  const normalized: Record<string, string | boolean> = {};
+  for (const [key, value] of Object.entries(options)) {
+    const separator = key.indexOf("=");
+    if (separator <= 0) {
+      normalized[key] = value;
+      continue;
+    }
+    // The `=value` half wins, including when it is empty, so `--opt=` is an
+    // explicit empty value rather than a flag.
+    normalized[key.slice(0, separator)] = key.slice(separator + 1);
+  }
+  return normalized;
+}
+
 export function parseArgs(argv: string[]): ParsedArgs {
   const positionals: string[] = [];
   const options: Record<string, string | boolean> = {};
@@ -27,7 +49,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
     index += 1;
   }
 
-  return { positionals, options };
+  return { positionals, options: normalizeEqualsOptions(options) };
 }
 
 export function readOption(

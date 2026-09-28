@@ -17,10 +17,17 @@ import Quickshell.Io
 // - Horizon rules mirror the CLI's own: active = inbox|timeline,
 //   overdue = timeline deadline < today, upcoming = today < deadline
 //   <= today + 14, sorted by date, then time, then priority, then title.
+// - transport: "cli" runs the read commands over HTTP as before. "watch"
+//   reads the snapshot `pravah watch` maintains, so reads cost no network
+//   and no process spawn. In watch mode a missing or stale snapshot is
+//   reported, never silently replaced by an HTTP poll: falling back would
+//   hide a dead `pravah watch` behind plausible-looking data.
+// - Writes always run over HTTP in both transports.
 QtObject {
   id: root
 
   property string cli: "pravah"
+  property string transport: "cli"
 
   // ------------------------------------------------------------- state ---
   property var goals: []
@@ -58,6 +65,12 @@ QtObject {
   property var _readQueue: []
   property var _activeRead: null
   property var _write: null
+
+  readonly property bool watching: transport === "watch"
+  // Resolved from `pravah watch --path` so the XDG rules stay in one place.
+  property string snapshotPath: ""
+  property bool snapshotResolved: false
+  property bool snapshotStale: false
 
   readonly property var allTasks: {
     var byTask = {}
@@ -269,6 +282,9 @@ QtObject {
       priority: (t.priority === "p1" || t.priority === "p2" || t.priority === "p3") ? t.priority : "",
       tags: tags,
       estimatedMinutes: typeof t.estimatedMinutes === "number" ? t.estimatedMinutes : 0,
+      // Only the watch snapshot carries this; `tasks list` leaves it empty and
+      // the goal is stitched from `goals list` as before.
+      goalId: typeof t.goalId === "string" ? t.goalId : "",
       goal: null
     }
   }
@@ -354,6 +370,9 @@ QtObject {
     var nowDate = Qt.formatDate(new Date(), "yyyy-MM-dd")
     var dateChanged = (nowDate !== today)
     today = nowDate
+    // In watch mode the FileView pushes updates; the poll timer has nothing
+    // to do and must not spawn reads.
+    if (watching) return
     if (force !== true && !dateChanged) {
       var now = Date.now()
       if (_lastSuccessMs > 0 && now - _lastSuccessMs < 60000) return
@@ -417,6 +436,97 @@ QtObject {
       }
     }
     finishRefreshBatch()
+  }
+
+  // ----------------------------------------------------- watch transport ---
+  // The snapshot is written by `pravah watch` with a temp-file + rename, so a
+  // FileView read never observes a half-written file. The one-time `watch
+  // --path` call keeps the XDG resolution rules in the CLI rather than
+  // duplicating them here.
+  FileView {
+    id: snapshotView
+    path: root.snapshotPath
+    watchChanges: true
+    blockLoading: false
+    onLoaded: function() { root.applySnapshotText(text()) }
+    onFileChanged: function() { root.applySnapshotText(text()) }
+    onLoadFailed: function() {
+      root.snapshotStale = false
+      root.lastError = "pravah watch is not publishing a snapshot — start it with `pravah watch`"
+    }
+  }
+
+  function resolveSnapshotPathFromCli() {
+    if (!watching || snapshotResolved) return
+    enqueueRead([cli, "watch", "--path"], function(exitCode, out, err) {
+      if (exitCode !== 0) {
+        snapshotResolved = true
+        lastError = "Pravah could not resolve the watch snapshot path"
+        return
+      }
+      var path = String(out).trim()
+      snapshotResolved = true
+      if (path === "") lastError = "Pravah reported an empty watch snapshot path"
+      else snapshotPath = path
+    })
+  }
+
+  function applySnapshotText(raw) {
+    var snap = null
+    try { snap = JSON.parse(String(raw)) } catch (e) { snap = null }
+    if (!snap || typeof snap !== "object" || snap.version !== 1) {
+      lastError = "pravah watch wrote an unreadable snapshot"
+      return
+    }
+    var tasks = Array.isArray(snap.tasks) ? snap.tasks : []
+    var normTasks = []
+    for (var i = 0; i < tasks.length; i++) {
+      var t = normalizeTask(tasks[i])
+      if (t) normTasks.push(t)
+    }
+    // Snapshot goals carry counters rather than embedded tasks, so link them
+    // back here for the same goal-stitching the HTTP path gets from
+    // `goals list`.
+    var byGoal = {}
+    for (var k = 0; k < normTasks.length; k++) {
+      var gid = normTasks[k].goalId
+      if (gid === "" || gid === undefined) continue
+      if (!byGoal[gid]) byGoal[gid] = []
+      byGoal[gid].push(normTasks[k])
+    }
+    var snapGoals = Array.isArray(snap.goals) ? snap.goals : []
+    var normGoals = []
+    for (var g = 0; g < snapGoals.length; g++) {
+      var raw_ = snapGoals[g]
+      if (!raw_ || typeof raw_.id !== "string" || typeof raw_.text !== "string") continue
+      var linked = byGoal[raw_.id] ? byGoal[raw_.id] : []
+      normGoals.push({
+        id: raw_.id,
+        text: raw_.text,
+        description: "",
+        deadline: readDate(raw_.deadline),
+        priority: (raw_.priority === "p1" || raw_.priority === "p2" || raw_.priority === "p3") ? raw_.priority : "",
+        progress: {
+          completed: typeof raw_.completedTasks === "number" ? raw_.completedTasks : 0,
+          active: typeof raw_.linkedTasks === "number" ? raw_.linkedTasks : 0
+        },
+        activeTasks: linked
+      })
+    }
+
+    _rawTasks = normTasks
+    goals = normGoals
+    if (typeof snap.day === "string" && snap.day !== "") today = snap.day
+    lastError = ""
+    initialized = true
+    syncing = false
+    lastSyncAt = Qt.formatTime(new Date(), "HH:mm")
+    _lastSuccessMs = Date.now()
+    _failCount = 0
+    // A snapshot that stopped advancing means the daemon died. Say so rather
+    // than showing data that looks current.
+    snapshotStale = typeof snap.generatedAt === "number" && (Date.now() - snap.generatedAt) > 600000
+    if (snapshotStale) lastError = "pravah watch stopped updating — restart it with `pravah watch`"
   }
 
   function loadOperations() {
@@ -608,6 +718,7 @@ QtObject {
 
   Component.onCompleted: {
     checkHealth()
-    refresh()
+    if (watching) resolveSnapshotPathFromCli()
+    else refresh()
   }
 }
