@@ -118,7 +118,7 @@ const readCredential = {
   label: "Laptop",
   ownerTokenIdentifier: "user-1",
   scopes: ["tasks:read"],
-  needsUsageWrite: false,
+  lastUsedAt: Date.now() as number | undefined,
 };
 
 const writeCredential = {
@@ -374,7 +374,7 @@ describe("http route handlers", () => {
   it("uses scopes from the usage write when a concurrent update dropped tasks:write", async () => {
     const handler = getHandler("/tasks/update", "POST");
     const ctx = createCtx();
-    mockCredentialQuery(ctx, { ...writeCredential, needsUsageWrite: true });
+    mockCredentialQuery(ctx, { ...writeCredential, lastUsedAt: undefined });
     ctx.runMutation.mockResolvedValueOnce({
       ...writeCredential,
       scopes: ["tasks:read"],
@@ -408,7 +408,7 @@ describe("http route handlers", () => {
   it("records credential usage only when the lookup says the write window is open", async () => {
     const handler = getHandler("/tasks", "GET");
     const ctx = createCtx();
-    mockCredentialQuery(ctx, { ...readCredential, needsUsageWrite: true }, []);
+    mockCredentialQuery(ctx, { ...readCredential, lastUsedAt: undefined }, []);
     ctx.runMutation.mockResolvedValue({ ...readCredential, needsUsageWrite: false });
 
     const response = await handler(

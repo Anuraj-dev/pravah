@@ -301,10 +301,13 @@ function MobileApp() {
     isImageCollectionsReady,
   } = useTaskQueries({
     isAuthenticated: Boolean(session),
-    // The full corpus stays subscribed for the whole session. At single-user
-    // scale it's a handful of indexed rows, and keeping it live means Goals /
-    // Progress / Kairo never pay a server round-trip on entry.
-    includeAllTasks: true,
+    includeCompletedHistory: activeTab === "goals" || activeTab === "insights",
+    includeCompletedToday: activeTab === "timeline",
+    includeImages:
+      activeTab === "inbox" ||
+      activeTab === "timeline" ||
+      activeTab === "goals" ||
+      activeTab === "insights",
   });
   const taskImageBudgetStatus = useQuery(
     api.taskImageBudget.getOwnerBudgetStatus,
@@ -334,6 +337,7 @@ function MobileApp() {
     workspaceTaskCorpus,
     displayTimelineSections,
     displayInboxCount,
+    displayOverdueCount,
     displayCompletedCount,
     activeServerTasks,
     visibleTasks,
@@ -479,12 +483,13 @@ function MobileApp() {
       );
     }
   }, [taskImageCoordinator, workspaceTaskCorpus]);
+  const [overduePreviewEnabled, setOverduePreviewEnabled] = useState(false);
   const overduePreviewData = useQuery(
     api.overdueReflow.preview,
-    session && activeTab === "timeline" ? { today } : "skip"
+    session && overduePreviewEnabled ? { today } : "skip"
   );
 
-  useConvexGoalsSync(Boolean(session));
+  useConvexGoalsSync(Boolean(session) && (activeTab === "goals" || activeTab === "insights"));
   const { setGoalLink, clearAll: clearAllGoals } = useGoalMutations();
 
   // ── Derived data ────────────────────────────────────────────────────
@@ -508,7 +513,11 @@ function MobileApp() {
   const tabBarHeight = 62 + tabBarBottomPadding;
 
   const shouldSyncReminders = Boolean(session) && notificationsEnabled && isAllTasksReady;
-  useReminderSync(allWorkspaceTasks, prefs, shouldSyncReminders);
+  useReminderSync(
+    [...inboxTasks, ...scheduledTasks],
+    prefs,
+    shouldSyncReminders,
+  );
 
   // ── Integrations ────────────────────────────────────────────────────
 
@@ -954,6 +963,7 @@ function MobileApp() {
     restoreTaskMutation: restoreTaskWithImageResume,
     showToast,
     enqueueRetry,
+    onOpenChange: setOverduePreviewEnabled,
   });
 
   // ── Add task handler (from sheet) ───────────────────────────────────
@@ -1455,16 +1465,12 @@ function MobileApp() {
               isRefreshing={isRefreshing}
               tabBarHeight={tabBarHeight}
               onRefresh={handleRefresh}
-              overdueCount={isTimelineTriageReady ? overdueBuckets.totalOverdue : undefined}
+              overdueCount={isTimelineTriageReady ? displayOverdueCount : undefined}
               onOpenOverdue={canUseWorkspaceActions && isTimelineTriageReady ? openOverdue : undefined}
               onTriageOverdue={
                 canUseWorkspaceActions && isTimelineTriageReady ? handleManualTriage : undefined
               }
-              onRescheduleAllGoals={
-                canUseWorkspaceActions && isTimelineTriageReady && previewGroups.length > 0
-                  ? rescheduleAll
-                  : undefined
-              }
+
               layout={prefs.timelineLayout}
               completedTasks={displayCompletedTasks}
               onCompleteTask={canUseWorkspaceActions ? markDone : undefined}
@@ -1734,6 +1740,7 @@ function MobileApp() {
         totalOverdue={overdueBuckets.totalOverdue}
         groups={previewGroups}
         orphans={overdueBuckets.orphans}
+        isLoading={overduePreviewEnabled && overduePreviewData === undefined}
         selectedPreview={selectedPreview}
         applyDeadline={applyDeadline}
         today={today}

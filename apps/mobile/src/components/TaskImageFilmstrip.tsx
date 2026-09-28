@@ -164,7 +164,7 @@ function statusLabel(image: TaskImageFilmstripEntry) {
     return `${Math.round(image.progress * 100)}%`;
   }
   if (isFailedImage(image)) return failureTitle(image);
-  if (image.state === "verifying") return "Verifying";
+  if (image.state === "verifying") return image.previewUri ? "" : "Verifying";
   if (image.state === "preparing") return "Preparing";
   return "";
 }
@@ -235,7 +235,7 @@ function ReadyTaskImage({
         source={{ uri: url }}
         style={[styles.image, style]}
         contentFit="cover"
-        cachePolicy="memory"
+        cachePolicy="memory-disk"
         accessibilityLabel={accessibilityLabel ?? (image.position === 0 ? "Primary Task image" : "Task image")}
         onError={handleDeliveryError}
       />

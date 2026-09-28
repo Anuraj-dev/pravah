@@ -1,5 +1,6 @@
 import { api } from "./_generated/api";
 import type { ActionCtx } from "./_generated/server";
+import { credentialNeedsUsageWrite } from "./automationCredentialUsage";
 import type { AutomationScope } from "./automationScopes";
 import { requireApiKeyAuth } from "./httpContracts";
 import { jsonResponse } from "./httpResponses";
@@ -45,7 +46,7 @@ async function requireAuth(
       if (!credential) {
         return { response: jsonResponse({ error: "Unauthorized" }, 401) };
       }
-      if (credential.needsUsageWrite) {
+      if (credentialNeedsUsageWrite(credential.lastUsedAt, Date.now())) {
         credential = await ctx.runMutation(api.automation.markCredentialUsed, {
           credentialSecret: bearerToken,
         });

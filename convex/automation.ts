@@ -2,12 +2,13 @@ import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/s
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { requireTokenIdentifier } from "./authHelpers";
+import { credentialNeedsUsageWrite } from "./automationCredentialUsage";
 import {
   automationScopeValidator,
   type AutomationScope,
 } from "./automationScopes";
 
-const CREDENTIAL_USAGE_WRITE_INTERVAL_MS = 5 * 60 * 1000;
+
 const MAX_CREDENTIAL_LABEL_LENGTH = 100;
 
 async function sha256Hex(value: string): Promise<string> {
@@ -402,12 +403,6 @@ async function findActiveCredentialBySecret(
   return credential;
 }
 
-function credentialNeedsUsageWrite(lastUsedAt: number | undefined, now: number) {
-  return (
-    lastUsedAt === undefined || now - lastUsedAt >= CREDENTIAL_USAGE_WRITE_INTERVAL_MS
-  );
-}
-
 function toResolvedCredential(credential: {
   _id: Id<"automationCredentials">;
   label: string;
@@ -420,6 +415,7 @@ function toResolvedCredential(credential: {
     label: credential.label,
     scopes: credential.scopes as AutomationScope[],
     ownerTokenIdentifier: credential.ownerTokenIdentifier,
+    lastUsedAt: credential.lastUsedAt,
     needsUsageWrite: credentialNeedsUsageWrite(credential.lastUsedAt, Date.now()),
   };
 }
@@ -433,7 +429,15 @@ export const resolveAutomationCredential = query({
     if (!credential) {
       return null;
     }
-    return toResolvedCredential(credential);
+    // No Date.now() here. The same secret must stay a cache hit.
+    // The HTTP action compares lastUsedAt with the clock.
+    return {
+      credentialId: credential._id,
+      label: credential.label,
+      scopes: credential.scopes as AutomationScope[],
+      ownerTokenIdentifier: credential.ownerTokenIdentifier,
+      lastUsedAt: credential.lastUsedAt,
+    };
   },
 });
 

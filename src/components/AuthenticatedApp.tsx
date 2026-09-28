@@ -31,6 +31,7 @@ import { useToast } from "./useToast";
 import { TopNavbar } from "./TopNavbar";
 import { isWebGoalsLinkingEnabled } from "../lib/featureFlags";
 import { isTaskCompleted } from "../lib/taskState";
+import { getLocalDateString } from "../lib/utils";
 
 const TaskPopup = lazy(() =>
   import("./TaskPopup").then((module) => ({ default: module.TaskPopup }))
@@ -67,7 +68,16 @@ export function AuthenticatedApp() {
   const { showToast, showError, showSuccess } = useToast();
 
   const boardTasks = useQuery(api.tasks.listBoardTasks, {});
-  const completedTasks = useQuery(api.tasks.listTasks, { status: "completed" });
+  const today = getLocalDateString();
+  const wantsCompletedHistory = activePage === "insights" || activePage === "goals";
+  const completedTasks = useQuery(
+    api.tasks.listTasks,
+    wantsCompletedHistory ? { status: "completed" } : "skip"
+  );
+  const completedToday = useQuery(
+    api.tasks.listTasks,
+    activePage === "timeline" ? { status: "completed", date: today } : "skip"
+  );
   const kairoTasks = useQuery(api.tasks.listTasks, kairoActive ? {} : "skip");
   const goals = useQuery(api.goals.list, webGoalsLinkingEnabled ? {} : "skip");
   const goalLinks = useQuery(api.goals.listLinks, webGoalsLinkingEnabled ? {} : "skip");
@@ -128,11 +138,11 @@ export function AuthenticatedApp() {
     [activePage]
   );
 
-  const allTasksForStats = useMemo(
-    () => [...(boardTasks ?? []), ...(completedTasks ?? [])],
-    [boardTasks, completedTasks]
-  );
-  useWebReminders(allTasksForStats);
+  const allTasksForStats = useMemo(() => {
+    const extra = wantsCompletedHistory ? (completedTasks ?? []) : (completedToday ?? []);
+    return [...(boardTasks ?? []), ...extra];
+  }, [boardTasks, completedTasks, completedToday, wantsCompletedHistory]);
+  useWebReminders(boardTasks ?? []);
 
   const goalNameByTaskId = useMemo(() => {
     if (!webGoalsLinkingEnabled || !goals || !goalLinks) return {};

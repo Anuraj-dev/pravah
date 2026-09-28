@@ -413,7 +413,7 @@ export function TaskImageViewer({
                     source={imageSource}
                     style={styles.image}
                     contentFit="contain"
-                    cachePolicy="memory"
+                    cachePolicy="memory-disk"
                     accessibilityRole="image"
                     accessibilityLabel={`Task image ${activeIndex + 1} of ${count}${activeIndex === 0 ? ", Primary" : ""}`}
                   />

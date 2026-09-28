@@ -56,27 +56,35 @@ describe("useTaskQueries — full corpus gating", () => {
     expect(fullCorpus.every(([, payload]) => payload === "skip")).toBe(true);
   });
 
-  it("skips full-corpus and duplicate count queries when full context is inactive", () => {
-    const { result } = renderHook(() =>
-      useTaskQueries({ isAuthenticated: true, includeAllTasks: false })
-    );
+  it("skips history, today's completed count, and images until a screen asks", () => {
+    const { result } = renderHook(() => useTaskQueries({ isAuthenticated: true }));
 
-    const fullCorpusActive = callsTo(LIST_REF, {});
-    expect(fullCorpusActive).toHaveLength(0);
+    expect(callsTo(LIST_REF, {})).toHaveLength(0);
     expect(callsTo(COUNTS_REF)).toHaveLength(0);
-
-    // The narrow status-scoped subscriptions still fire so tab switching is instant.
     expect(callsTo(LIST_REF, { status: "inbox" })).toHaveLength(1);
-    expect(callsTo(LIST_REF, { status: "completed" })).toHaveLength(1);
+    expect(callsTo(LIST_REF, { status: "completed" })).toHaveLength(0);
+    expect(callsTo(IMAGE_COLLECTIONS_REF, "skip")).toHaveLength(1);
     expect(result.current.isAllTasksReady).toBe(true);
+    expect(result.current.isImageCollectionsReady).toBe(true);
   });
 
-  it("subscribes to the full corpus when Kairo is active", () => {
+  it("subscribes to completed history only when that screen is open", () => {
     renderHook(() =>
-      useTaskQueries({ isAuthenticated: true, includeAllTasks: true })
+      useTaskQueries({ isAuthenticated: true, includeCompletedHistory: true })
     );
 
-    expect(callsTo(LIST_REF, {})).toHaveLength(1);
+    expect(callsTo(LIST_REF, { status: "completed" })).toHaveLength(1);
+    expect(callsTo(LIST_REF, {})).toHaveLength(0);
+  });
+
+  it("asks for today's completed tasks by deadline instead of the full history", () => {
+    const window = buildTimelineWindow(new Date());
+    renderHook(() =>
+      useTaskQueries({ isAuthenticated: true, includeCompletedToday: true })
+    );
+
+    expect(callsTo(LIST_REF, { status: "completed", date: window.today })).toHaveLength(1);
+    expect(callsTo(LIST_REF, { status: "completed" })).toHaveLength(0);
   });
 
   it("does not report image metadata readiness before its subscription resolves", () => {
@@ -85,7 +93,7 @@ describe("useTaskQueries — full corpus gating", () => {
     );
 
     const { result } = renderHook(() =>
-      useTaskQueries({ isAuthenticated: true, includeAllTasks: false })
+      useTaskQueries({ isAuthenticated: true, includeImages: true })
     );
 
     expect(result.current.isImageCollectionsReady).toBe(false);
@@ -94,9 +102,7 @@ describe("useTaskQueries — full corpus gating", () => {
   it("omits startDate so overdue scheduled tasks remain visible in the timeline", () => {
     const window = buildTimelineWindow(new Date());
 
-    renderHook(() =>
-      useTaskQueries({ isAuthenticated: true, includeAllTasks: false })
-    );
+    renderHook(() => useTaskQueries({ isAuthenticated: true }));
 
     expect(callsTo(TIMELINE_REF, { endDate: window.queryEndDate })).toHaveLength(1);
     expect(
