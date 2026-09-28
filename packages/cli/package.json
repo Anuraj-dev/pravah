@@ -16,7 +16,7 @@
   "engines": {
     "bun": ">=1.3.0"
   },
-  "dependencies": {
+  "devDependencies": {
     "convex": "^1.34.1"
   },
   "author": "Snehit70",

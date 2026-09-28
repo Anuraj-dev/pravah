@@ -124,10 +124,6 @@ export async function runWatch({
   log = () => {},
   now = Date.now,
 }: RunWatchOptions): Promise<WatchHandle> {
-  let ownerToken = await fetchOwnerToken(siteUrl, bearerToken);
-  const convexUrl = ownerToken.convexUrl;
-  const client = new ConvexClient(convexUrl);
-
   const asAuthError = (error: unknown): Error | null => {
     const status = error instanceof ConvexHttpError ? error.status : null;
     if (status === 401 || status === 403) {
@@ -137,6 +133,23 @@ export async function runWatch({
     }
     return null;
   };
+
+  // The opening mint is awaited, so a revoked credential fails here. Report it
+  // the same way the other commands do rather than surfacing raw HTTP text.
+  let ownerToken: OwnerToken;
+  try {
+    ownerToken = await fetchOwnerToken(siteUrl, bearerToken);
+  } catch (error) {
+    const authError = asAuthError(error);
+    if (authError) {
+      if (onAuthError) onAuthError(authError);
+      throw authError;
+    }
+    throw error;
+  }
+
+  const convexUrl = ownerToken.convexUrl;
+  const client = new ConvexClient(convexUrl);
 
   // Invoked from Convex callbacks, where throwing would surface as an unhandled
   // rejection rather than a message the user can act on.
@@ -198,9 +211,10 @@ export async function runWatch({
     publish();
   };
 
-  const failed = (name: SourceKey) => (error: unknown) => {
+  // Name the Convex query, not the internal key, so the log is actionable.
+  const failed = (query: string) => (error: unknown) => {
     reportAsync(error);
-    log(`watch: ${name} subscription failed`);
+    log(`watch: ${query} subscription failed`);
   };
 
   const scheduleMidnightResubscribe = () => {
@@ -214,15 +228,25 @@ export async function runWatch({
   const subscribe = (): Array<() => void> => {
     const { startMs, endMs } = getLocalDayBounds(new Date(now()));
     return [
-      client.onUpdate(listBoardTasks, {}, track("boardTasks"), failed("boardTasks")),
+      client.onUpdate(
+        listBoardTasks,
+        {},
+        track("boardTasks"),
+        failed("tasks:listBoardTasks")
+      ),
       client.onUpdate(
         listTodayCompletedTasks,
         { dayStartMs: startMs, dayEndMs: endMs },
         track("completedToday"),
-        failed("completedToday")
+        failed("tasks:listTodayCompletedTasks")
       ),
-      client.onUpdate(listGoals, {}, track("goals"), failed("goals")),
-      client.onUpdate(listGoalLinks, {}, track("goalLinks"), failed("goalLinks")),
+      client.onUpdate(listGoals, {}, track("goals"), failed("goals:list")),
+      client.onUpdate(
+        listGoalLinks,
+        {},
+        track("goalLinks"),
+        failed("goals:listLinks")
+      ),
     ];
   };
 
