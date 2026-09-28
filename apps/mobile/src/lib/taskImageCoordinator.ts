@@ -105,6 +105,10 @@ export type TaskImageSourceStore = {
   remove: (sourceKey: string) => Promise<void>;
 };
 
+export type TaskImageLibraryStore = {
+  save: (taskImageId: string, sourceUri: string) => Promise<void>;
+};
+
 export type TaskImageCoordinatorDependencies = {
   createUploadId: () => string;
   acquireSource: (kind: TaskImageSourceKind) => Promise<AcquiredTaskImageSource>;
@@ -138,6 +142,7 @@ export type TaskImageCoordinatorDependencies = {
   ownerScope?: () => string | undefined;
   manifestStore?: TaskImageManifestStore;
   sourceStore?: TaskImageSourceStore;
+  libraryStore?: TaskImageLibraryStore;
   now?: () => number;
 };
 
@@ -386,6 +391,21 @@ export function createTaskImageCoordinator(dependencies: TaskImageCoordinatorDep
     }
   };
 
+  const archiveLocalCopy = async (entry: UploadRecord) => {
+    if (!entry.taskImageId || !dependencies.libraryStore) return;
+    const sourceUri = entry.sourceUri
+      ?? (entry.sourceKey && dependencies.sourceStore
+        ? await dependencies.sourceStore.resolve(entry.sourceKey)
+        : null);
+    if (!sourceUri) return;
+    await dependencies.libraryStore.save(entry.taskImageId, sourceUri).catch(() => undefined);
+  };
+
+  const finishReady = async (entry: UploadRecord) => {
+    await archiveLocalCopy(entry);
+    await removeSource(entry);
+  };
+
   const removeRecord = async (entry: UploadRecord) => {
     entry.generation += 1;
     entry.paused = true;
@@ -485,7 +505,7 @@ export function createTaskImageCoordinator(dependencies: TaskImageCoordinatorDep
       retryAt: undefined,
     });
     if (verified.state === "ready") {
-      await removeSource(entry);
+      await finishReady(entry);
       if (entry.taskId || !visibleUploadIds.includes(entry.uploadId)) {
         pruneCompletedRecord(entry);
         void persist();
@@ -523,7 +543,7 @@ export function createTaskImageCoordinator(dependencies: TaskImageCoordinatorDep
           retryAt: undefined,
           restartAttempt: false,
         });
-        await removeSource(entry);
+        await finishReady(entry);
         return false;
       }
       try {
@@ -689,7 +709,7 @@ export function createTaskImageCoordinator(dependencies: TaskImageCoordinatorDep
         if (!ordered.includes(restored.uploadId)) taskUploadOrder.set(restored.taskId, [...ordered, restored.uploadId]);
         if (restored.state === "ready" &&
           (restored.taskId || !manifestVisibleUploadIds.includes(restored.uploadId))) {
-          await removeSource(restored);
+          await finishReady(restored);
           pruneCompletedRecord(restored);
           continue;
         }

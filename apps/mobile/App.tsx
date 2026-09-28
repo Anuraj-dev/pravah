@@ -36,6 +36,7 @@ import { classifyError, createActionId, mobileLogger } from "./src/lib/logger";
 import {
   getDiagnosticsSnapshot,
   initializeDiagnostics,
+  recordDiagnosticEvent,
   setDiagnosticScreen,
   shutdownDiagnostics,
   type DiagnosticEvent,
@@ -107,11 +108,21 @@ import {
   acquireTaskImageSources,
   abortPreparedTaskImageUpload,
   normalizeTaskImage,
+  deleteLocalTaskImage,
+  downloadLocalTaskImage,
   persistTaskImageSource,
+  readLocalTaskImage,
   removeTaskImageSource,
   resolveTaskImageSource,
   uploadPreparedTaskImage,
+  writeLocalTaskImage,
 } from "./src/lib/taskImageNative";
+import {
+  LOCAL_TASK_IMAGE_INDEX_KEY,
+  rememberLocalTaskImage,
+  resolveTaskImageBytes,
+  retainLocalTaskImages,
+} from "./src/lib/taskImageLibrary";
 import {
   AlertCircleIcon,
   CloseIcon,
@@ -299,6 +310,7 @@ function MobileApp() {
     isCompletedLoading,
     isAllTasksReady,
     isImageCollectionsReady,
+    retainedImageIds,
   } = useTaskQueries({
     isAuthenticated: Boolean(session),
     includeCompletedHistory: activeTab === "goals" || activeTab === "insights",
@@ -403,6 +415,17 @@ function MobileApp() {
           resolve: resolveTaskImageSource,
           remove: removeTaskImageSource,
         },
+        libraryStore: {
+          save: async (taskImageId, sourceUri) => {
+            const stored = await writeLocalTaskImage(taskImageId, sourceUri);
+            if (!stored) return;
+            await rememberLocalTaskImage(
+              taskImageId,
+              () => AsyncStorage.getItem(LOCAL_TASK_IMAGE_INDEX_KEY),
+              (value) => AsyncStorage.setItem(LOCAL_TASK_IMAGE_INDEX_KEY, value),
+            );
+          },
+        },
         ownerScope: () => session?.user?.id,
         manifestStore: taskImageManifestStore,
         stage: async (image) => {
@@ -445,11 +468,73 @@ function MobileApp() {
       session?.user?.id,
     ]
   );
+  const taskImageByteStore = useMemo(() => ({
+    read: readLocalTaskImage,
+    writeFromFile: async (taskImageId: string, sourceUri: string) => {
+      const stored = await writeLocalTaskImage(taskImageId, sourceUri);
+      if (stored) {
+        await rememberLocalTaskImage(
+          taskImageId,
+          () => AsyncStorage.getItem(LOCAL_TASK_IMAGE_INDEX_KEY),
+          (value) => AsyncStorage.setItem(LOCAL_TASK_IMAGE_INDEX_KEY, value),
+        );
+      }
+      return stored;
+    },
+    writeFromUrl: async (taskImageId: string, url: string) => {
+      const stored = await downloadLocalTaskImage(taskImageId, url);
+      if (stored) {
+        await rememberLocalTaskImage(
+          taskImageId,
+          () => AsyncStorage.getItem(LOCAL_TASK_IMAGE_INDEX_KEY),
+          (value) => AsyncStorage.setItem(LOCAL_TASK_IMAGE_INDEX_KEY, value),
+        );
+      }
+      return stored;
+    },
+  }), []);
   const resolveTaskImage = useCallback(
-    (taskImageId: string, variant: "card" | "detail") =>
-      resolveTaskImageAction({ taskImageId: taskImageId as Id<"taskImages">, variant }),
-    [resolveTaskImageAction]
+    (taskImageId: string, variant: "card" | "detail", options?: { download?: boolean }) =>
+      resolveTaskImageBytes({
+        taskImageId,
+        variant,
+        allowDownload: options?.download !== false,
+        store: taskImageByteStore,
+        resolveRemote: async (id, remoteVariant) => {
+          const result = await resolveTaskImageAction({
+            taskImageId: id as Id<"taskImages">,
+            variant: remoteVariant,
+          });
+          if (result.kind === "ready" || result.kind === "not_found" || result.kind === "state") return result;
+          return { kind: "not_found" as const };
+        },
+        onIo: (event) => {
+          recordDiagnosticEvent("image_io", "debug", event, "network");
+        },
+      }),
+    [resolveTaskImageAction, taskImageByteStore],
   );
+  const retainedImageKey = retainedImageIds?.join("\n") ?? null;
+  useEffect(() => {
+    if (!retainedImageIds) return;
+    let cancelled = false;
+    const protectedIds = new Set(
+      taskImageCoordinator.getViewStates().flatMap((image) => image.taskImageId ? [image.taskImageId] : []),
+    );
+    void retainLocalTaskImages({
+      nextIds: new Set(retainedImageIds),
+      protectedIds,
+      readIndex: () => AsyncStorage.getItem(LOCAL_TASK_IMAGE_INDEX_KEY),
+      writeIndex: (value) => AsyncStorage.setItem(LOCAL_TASK_IMAGE_INDEX_KEY, value),
+      remove: deleteLocalTaskImage,
+    }).then((forgotten) => {
+      if (cancelled || forgotten.length === 0) return;
+      recordDiagnosticEvent("image_io", "info", { outcome: "deleted", count: forgotten.length }, "sync");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [retainedImageIds, retainedImageKey, taskImageCoordinator]);
   const sessionUserId = session?.user?.id;
   useEffect(() => {
     if (!sessionUserId) {

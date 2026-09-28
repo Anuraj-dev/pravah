@@ -56,7 +56,8 @@ export type RecoverableTaskImageEntry = {
 type DeliveryResult =
   | { kind: "ready"; url: string }
   | { kind: "not_found" }
-  | { kind: "state"; state: string };
+  | { kind: "state"; state: string }
+  | { kind: "deferred" };
 
 type TaskImageFilmstripProps = {
   surface?: TaskImageFilmstripSurface;
@@ -70,9 +71,20 @@ type TaskImageFilmstripProps = {
   onRestore?: (taskImageId: string, replaceTaskImageId?: string) => void;
   resolveDelivery?: (
     taskImageId: string,
-    variant: "card" | "detail"
+    variant: "card" | "detail",
+    options?: { download?: boolean },
   ) => Promise<DeliveryResult>;
 };
+
+function requestDelivery(
+  resolveDelivery: NonNullable<TaskImageFilmstripProps["resolveDelivery"]>,
+  taskImageId: string,
+  variant: "card" | "detail",
+  download: boolean,
+) {
+  if (download) return resolveDelivery(taskImageId, variant);
+  return resolveDelivery(taskImageId, variant, { download: false });
+}
 
 type OpenImage = (taskImageId: string) => void;
 type OpenSource = () => void;
@@ -185,49 +197,66 @@ function ReadyTaskImage({
   image,
   resolveDelivery,
   variant,
+  download = true,
   style,
   accessibilityLabel,
 }: {
   image: TaskImageFilmstripEntry;
   resolveDelivery?: TaskImageFilmstripProps["resolveDelivery"];
   variant: "card" | "detail";
+  download?: boolean;
   style?: object;
   accessibilityLabel?: string;
 }) {
   const [url, setUrl] = useState<string | null>(null);
   const [unavailable, setUnavailable] = useState(!resolveDelivery);
-  const requestKey = `${image.taskImageId}:${variant}`;
+  const [deferred, setDeferred] = useState(false);
+  const requestKey = `${image.taskImageId}:${variant}:${download}`;
   const retriedRequestRef = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
     if (!resolveDelivery) return () => { active = false; };
-    void resolveDelivery(image.taskImageId, variant)
+    void requestDelivery(resolveDelivery, image.taskImageId, variant, download)
       .then((result) => {
         if (!active) return;
-        if (result.kind === "ready") setUrl(result.url);
-        else setUnavailable(true);
+        if (result.kind === "ready") {
+          setUrl(result.url);
+          setDeferred(false);
+          return;
+        }
+        if (result.kind === "deferred") {
+          setDeferred(true);
+          setUnavailable(false);
+          return;
+        }
+        setUnavailable(true);
       })
       .catch(() => {
         if (active) setUnavailable(true);
       });
     return () => { active = false; };
-  }, [image.taskImageId, resolveDelivery, variant]);
+  }, [download, image.taskImageId, resolveDelivery, variant]);
 
   const handleDeliveryError = () => {
     setUrl(null);
-    if (!resolveDelivery || retriedRequestRef.current === requestKey) {
+    if (!resolveDelivery || !download || retriedRequestRef.current === requestKey) {
       setUnavailable(true);
       return;
     }
     retriedRequestRef.current = requestKey;
-    void resolveDelivery(image.taskImageId, variant)
+    void requestDelivery(resolveDelivery, image.taskImageId, variant, true)
       .then((result) => {
         if (result.kind === "ready") setUrl(result.url);
+        else if (result.kind === "deferred") setDeferred(true);
         else setUnavailable(true);
       })
       .catch(() => setUnavailable(true));
   };
+
+  if (deferred && !url) {
+    return <Text style={styles.stateText}>Open to load</Text>;
+  }
 
   if (url) {
     return (
@@ -309,6 +338,7 @@ function ImagePreview({
   image,
   resolveDelivery,
   variant,
+  download = true,
   style,
   showStatus = true,
   accessibilityLabel,
@@ -318,6 +348,7 @@ function ImagePreview({
   image: TaskImageFilmstripEntry;
   resolveDelivery?: TaskImageFilmstripProps["resolveDelivery"];
   variant: "card" | "detail";
+  download?: boolean;
   style?: object;
   showStatus?: boolean;
   accessibilityLabel?: string;
@@ -329,7 +360,7 @@ function ImagePreview({
       {image.previewUri && image.state !== "ready" ? (
         <Image source={{ uri: image.previewUri }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory" accessibilityLabel={accessibilityLabel ?? "Selected Task image preview"} />
       ) : image.state === "ready" ? (
-        <ReadyTaskImage key={`${image.taskImageId}:${variant}`} image={image} resolveDelivery={resolveDelivery} variant={variant} style={StyleSheet.absoluteFill} accessibilityLabel={accessibilityLabel} />
+        <ReadyTaskImage key={`${image.taskImageId}:${variant}:${download}`} image={image} resolveDelivery={resolveDelivery} variant={variant} download={download} style={StyleSheet.absoluteFill} accessibilityLabel={accessibilityLabel} />
       ) : (
         <Text style={styles.stateText}>{stateCopy(image)}</Text>
       )}
@@ -484,6 +515,7 @@ function InboxSurface({ images, resolveDelivery, onOpenImage }: TaskImageFilmstr
           image={primary}
           resolveDelivery={resolveDelivery}
           variant="card"
+          download={false}
           style={styles.inboxThumb}
           onPress={onOpenImage && hasTaskImageVisual(primary) ? () => onOpenImage(primary.taskImageId) : undefined}
           onPressLabel="Open primary Task image"

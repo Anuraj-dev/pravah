@@ -26,7 +26,8 @@ import {
 type DeliveryResult =
   | { kind: "ready"; url: string }
   | { kind: "not_found" }
-  | { kind: "state"; state: string };
+  | { kind: "state"; state: string }
+  | { kind: "deferred" };
 
 export type TaskImageViewerProps = {
   visible: boolean;
@@ -349,7 +350,8 @@ export function TaskImageViewer({
   const unavailable = !imageSource && (
     activeImage.state !== "ready" ||
     activeDelivery?.kind === "not_found" ||
-    activeDelivery?.kind === "state"
+    activeDelivery?.kind === "state" ||
+    activeDelivery?.kind === "deferred"
   );
   const counterText = `${activeIndex + 1} of ${count}${activeIndex === 0 ? " · Primary" : ""}`;
 

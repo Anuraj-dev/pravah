@@ -314,7 +314,7 @@ describe("TaskCard", () => {
     );
 
     expect(await screen.findByAltText("Primary Task image")).toBeTruthy();
-    expect(resolveTaskImage).toHaveBeenCalledWith("image-1", "card");
+    expect(resolveTaskImage).toHaveBeenCalledWith("image-1", "card", { download: false });
     expect(document.body.textContent).not.toContain("transient.example");
   });
 });
