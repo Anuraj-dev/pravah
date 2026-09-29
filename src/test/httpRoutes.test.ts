@@ -13,6 +13,9 @@ interface RouteDef {
 }
 
 const routeRegistry = vi.hoisted(() => [] as RouteDef[]);
+const mintOwnerConvexToken = vi.hoisted(() =>
+  vi.fn(async (_args: unknown) => ({ token: "minted.jwt.token", expiresAt: 1_800_000_000_000 }))
+);
 
 vi.mock("convex/server", () => ({
   httpRouter: () => ({
@@ -79,7 +82,7 @@ vi.mock("../../convex/auth", () => ({
   authComponent: {
     registerRoutes: () => undefined,
   },
-  createAuth: () => ({}),
+  createAuth: () => ({ api: { mintOwnerConvexToken } }),
 }));
 
 import "../../convex/http";
@@ -1125,6 +1128,95 @@ describe("http route handlers", () => {
       expect(response.headers.get("Access-Control-Allow-Origin")).toBe(
         "https://staging.example.com"
       );
+    });
+  });
+
+  describe("POST /automation/convex-token", () => {
+    const SITE_URL = "https://combative-zebra-261.eu-west-1.convex.site";
+    const post = (ctx: MockCtx) =>
+      getHandler("/automation/convex-token", "POST")(
+        ctx,
+        new Request("https://example.com/automation/convex-token", {
+          method: "POST",
+          headers: { authorization: "Bearer pravah_cred_secret" },
+        })
+      );
+
+    beforeEach(() => {
+      mintOwnerConvexToken.mockClear();
+      mintOwnerConvexToken.mockResolvedValue({
+        token: "minted.jwt.token",
+        expiresAt: 1_800_000_000_000,
+      });
+    });
+
+    it("mints a short token for the credential's own subject", async () => {
+      const ctx = createCtx();
+      mockCredentialQuery(ctx, {
+        ...readCredential,
+        ownerTokenIdentifier: `${SITE_URL}|user_abc123`,
+      });
+
+      const response = await post(ctx);
+      expect(response.status).toBe(200);
+      const body = await response.json();
+
+      expect(mintOwnerConvexToken).toHaveBeenCalledTimes(1);
+      const [{ body: mintBody }] = mintOwnerConvexToken.mock.calls[0] as [
+        { body: { subject: string; ttlSeconds: number } },
+      ];
+      expect(mintBody.subject).toBe("user_abc123");
+      expect(mintBody.ttlSeconds).toBe(15 * 60);
+
+      // The CLI needs the websocket url, not the http action url.
+      expect(body).toMatchObject({
+        token: "minted.jwt.token",
+        convexUrl: "https://combative-zebra-261.eu-west-1.convex.cloud",
+        siteUrl: SITE_URL,
+        label: "Laptop",
+      });
+      // The bearer secret must never be echoed back to the client.
+      expect(JSON.stringify(body)).not.toContain("pravah_cred_secret");
+    });
+
+    it("refuses a credential whose issuer is a different deployment", async () => {
+      const ctx = createCtx();
+      mockCredentialQuery(ctx, {
+        ...readCredential,
+        ownerTokenIdentifier: "https://other-deployment.convex.site|user_abc123",
+      });
+
+      const response = await post(ctx);
+      expect(response.status).toBe(409);
+      expect(mintOwnerConvexToken).not.toHaveBeenCalled();
+    });
+
+    it("refuses an ownerTokenIdentifier that is not issuer|subject", async () => {
+      const ctx = createCtx();
+      mockCredentialQuery(ctx, readCredential);
+
+      const response = await post(ctx);
+      expect(response.status).toBe(409);
+      expect(mintOwnerConvexToken).not.toHaveBeenCalled();
+    });
+
+    it("rejects an unauthenticated caller before minting", async () => {
+      const ctx = createCtx();
+      const response = await getHandler("/automation/convex-token", "POST")(
+        ctx,
+        new Request("https://example.com/automation/convex-token", { method: "POST" })
+      );
+      expect(response.status).toBe(401);
+      expect(mintOwnerConvexToken).not.toHaveBeenCalled();
+    });
+
+    it("requires tasks:read on the credential", async () => {
+      const ctx = createCtx();
+      mockCredentialQuery(ctx, { ...readCredential, scopes: ["sync:read"] });
+
+      const response = await post(ctx);
+      expect(response.status).toBe(403);
+      expect(mintOwnerConvexToken).not.toHaveBeenCalled();
     });
   });
 });

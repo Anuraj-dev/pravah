@@ -101,6 +101,20 @@ The 381 `/automation/credential` calls are the CLI scope refresh. It rechecks th
 
 `automationTools.js:listTasks` is 640 calls and 2.7 MB. The average is about 4 KB a call, so a lot of those are cheap or cached. The CLI still asks for the unfiltered owner set unless `--date` is set, then filters the horizon in process. Server-side status and date bounds cut bytes on the uncached calls. They do not cut the 640 calls unless the agent polls less. `doctor` still proves the endpoint with `listTasks({})`. [Doctor](../../packages/cli/src/commands.ts#L59)
 
+## Omarchy widget poll
+
+Added 2026-09-28. Written before the work landed, so the cut described here is now `pravah watch` in #254.
+
+The Omarchy bar widget is `packages/todo-plugin`. It does not open a Convex socket. It shells out to the `pravah` CLI on a timer. `pollIntervalSec` defaults to 300, and the setting cannot go below 10. [Timer](../../packages/todo-plugin/omarchy-plugin/widget/PravahTodo.qml#L17) [Default](../../packages/todo-plugin/omarchy-plugin/manifest.json#L20) Right-click still refreshes immediately. Each tick is HTTP. The data layer runs `tasks list`, and goals when that view needs them. [Reads](../../packages/todo-plugin/omarchy-plugin/widget/PravahData.qml#L369) Every bearer request runs `resolveAutomationCredential` once. That is the September pairing of 1,181 credential resolves with 640 `/tasks` calls. The widget is one poller. Anything else that runs the CLI is the other. In `cli` transport that is still true; `watch` transport drops the timer entirely.
+
+The phone and the web app do not poll. They keep a Convex websocket open, and Convex pushes when the read set changes. A cached query with the same function and the same arguments is not charged database bandwidth. [Realtime cache](https://docs.convex.dev/realtime)
+
+The CLI cannot join that socket with the automation key. The key is an HTTP bearer for the automation routes, not a Convex user session. The phone and the web sign in through Better Auth and then hold `ConvexReactClient`. So the CLI has to be given a session-shaped credential first, which is what #254 does: `POST /automation/convex-token` exchanges the automation bearer for a short-lived Convex JWT for the same owner, signed with the key `auth.config.ts` already publishes. The secret never reaches the socket, which bounds a revoked credential to the token lifetime.
+
+Built in #254 as `pravah watch`: a long-lived process that holds a Convex socket as the credential's own owner, subscribed the way the phone is. The widget reads its snapshot through a `FileView` instead of calling `tasks list` on a timer, and the poll timer does not run at all. Writes stay on the HTTP CLI, as before. The credential query no longer runs on every tick; it runs on a 15-minute token refresh.
+
+This landed before the next usage period closed, so the charts above still describe the polling era. Re-measure after it has been in use. A bar open all day at the 10 second floor was a different bill from the 5 minute default; in `watch` transport there is no interval at all, which is the point.
+
 ## Images
 
 The file already goes straight to Cloudinary. The phone builds a multipart POST to `grant.uploadUrl`, which the grant sets to `https://api.cloudinary.com/v1_1/.../image/upload`. [Upload](../../apps/mobile/src/lib/taskImageNative.ts#L387-L411) [Grant URL](../../convex/taskImageProvider.ts#L312-L315) Convex never holds the image bytes.
@@ -132,6 +146,7 @@ The phone already has a diagnostic log in AsyncStorage. It keeps 10,000 events, 
 5. Set the Convex JWT to one day and set `initialAuthTokenReuse: true`. Leave the 7-day login session alone.
 6. Delete task indexes that are prefixes of a longer index, after nothing queries them. That is storage and write cost.
 7. Show the local image immediately, mark ready on the verified master, and cache the delivery image on disk.
+8. Later. Re-measure the Omarchy widget after `pravah watch` shipped in #254. The note is in "Omarchy widget poll" above.
 
 I would not expect step 4 or step 5 to move the database I/O chart by much. Step 4 moves the function-call chart. Steps 1 through 3 are the I/O chart. Step 7 is the wait you feel, which is not on either chart.
 
@@ -164,5 +179,12 @@ Usage query, opened 2026-09-28, billing window 2026-09-01 to 2026-09-30, project
 - [apps/mobile/src/lib/taskImageNative.ts](../../apps/mobile/src/lib/taskImageNative.ts)
 - [apps/mobile/src/components/TaskImageFilmstrip.tsx](../../apps/mobile/src/components/TaskImageFilmstrip.tsx)
 - [packages/cli/src/commands.ts](../../packages/cli/src/commands.ts)
+- [packages/todo-plugin/omarchy-plugin/manifest.json](../../packages/todo-plugin/omarchy-plugin/manifest.json)
+- [packages/todo-plugin/omarchy-plugin/widget/PravahTodo.qml](../../packages/todo-plugin/omarchy-plugin/widget/PravahTodo.qml)
+- [packages/todo-plugin/omarchy-plugin/widget/PravahData.qml](../../packages/todo-plugin/omarchy-plugin/widget/PravahData.qml)
+- [packages/cli/src/watchCommand.ts](../../packages/cli/src/watchCommand.ts)
+- [packages/cli/src/watchClient.ts](../../packages/cli/src/watchClient.ts)
+- [packages/cli/src/watchSnapshot.ts](../../packages/cli/src/watchSnapshot.ts)
+- [convex/ownerConvexToken.ts](../../convex/ownerConvexToken.ts)
 - `node_modules/better-auth/dist/context/create-context.mjs`
 - `node_modules/@convex-dev/better-auth/src/plugins/convex/index.ts`

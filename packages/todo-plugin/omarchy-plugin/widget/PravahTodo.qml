@@ -16,6 +16,9 @@ BarWidget {
   // ----------------------------------------------------------- settings ---
   readonly property int pollSec: Math.max(10, Number(setting("pollIntervalSec", 300)) || 300)
   readonly property bool showCompleted: String(setting("showCompleted", "On")).toLowerCase() !== "off"
+  // "watch" reads the snapshot `pravah watch` maintains instead of polling the
+  // HTTP API. Writes stay on HTTP either way.
+  readonly property string transport: String(setting("transport", "cli")) === "watch" ? "watch" : "cli"
 
   // -------------------------------------------------------------- state ---
   property bool panelOpen: false
@@ -40,7 +43,7 @@ BarWidget {
     confirmAction = null
   }
 
-  PravahData { id: store }
+  PravahData { id: store; transport: root.transport }
 
   // ---------------------------------------------------------------- ipc ---
   IpcHandler {
@@ -570,7 +573,9 @@ BarWidget {
 
       onSaveRequested: function(fields) {
         goalEditor.close()
-        if (editingGoal) store.submitWrite(store.goalEditArgv(editingGoal, fields), "Saving goal…")
+        // goalEditArgv is just the base argv when nothing changed; submitting
+        // that would be a no-op write, so skip it like the task editor does.
+        if (editingGoal) { var goalArgv = store.goalEditArgv(editingGoal, fields); if (goalArgv.length > 5) store.submitWrite(goalArgv, "Saving goal…") }
         else store.submitWrite(store.goalAddArgv(fields), "Creating goal…")
       }
       onCanceled: goalEditor.close()
@@ -939,7 +944,10 @@ BarWidget {
 
   Timer {
     interval: root.pollSec * 1000
-    running: true
+    // In watch mode the snapshot FileView pushes updates, so there is nothing
+    // to poll for. A still-running timer would only cost a wasted tick that
+    // `refresh` then drops.
+    running: root.transport !== "watch"
     repeat: true
     onTriggered: store.refresh()
   }

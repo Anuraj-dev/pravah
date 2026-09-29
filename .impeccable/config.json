@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "geistmono_500medium",
+        "createdAt": "2026-09-28T07:55:35.464Z",
+        "reason": "Agent: DESIGN.md documents Geist Mono; Geistmono_500medium is the Expo loaded face for that family"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "geist_600semibold",
+        "createdAt": "2026-09-28T07:55:35.489Z",
+        "reason": "Agent: DESIGN.md documents Geist; Geist_600semibold is the Expo loaded face for that family"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "var(--font-sans)",
+        "createdAt": "2026-09-28T07:55:35.504Z",
+        "reason": "Agent: DESIGN.md documents Geist as the sans family; var(--font-sans) is that token"
+      }
+    ]
+  }
+}
