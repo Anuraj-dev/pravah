@@ -207,6 +207,42 @@ describe("runWatch", () => {
     expect(snapshots[1]!.counts.active).toBe(2);
   });
 
+  it("re-publishes a heartbeat when idle so generatedAt keeps advancing", async () => {
+    await start();
+    for (const [name, value] of [
+      ["tasks:listBoardTasks", BOARD],
+      ["tasks:listTodayCompletedTasks", DONE],
+      ["goals:list", GOALS],
+      ["goals:listLinks", LINKS],
+    ] as const) {
+      client().named(name)[0]!.onValue(value);
+    }
+    expect(snapshots).toHaveLength(1);
+
+    clock += 61 * 1000;
+    vi.advanceTimersByTime(61 * 1000);
+    expect(snapshots).toHaveLength(2);
+    expect(snapshots[1]!.generatedAt).toBeGreaterThan(snapshots[0]!.generatedAt);
+    expect(snapshots[1]!.counts).toEqual(snapshots[0]!.counts);
+  });
+
+  it("stops the heartbeat on close", async () => {
+    const handle = await start();
+    for (const [name, value] of [
+      ["tasks:listBoardTasks", BOARD],
+      ["tasks:listTodayCompletedTasks", DONE],
+      ["goals:list", GOALS],
+      ["goals:listLinks", LINKS],
+    ] as const) {
+      client().named(name)[0]!.onValue(value);
+    }
+    expect(snapshots).toHaveLength(1);
+    await handle.close();
+    clock += 10 * 60 * 1000;
+    vi.advanceTimersByTime(10 * 60 * 1000);
+    expect(snapshots).toHaveLength(1);
+  });
+
   it("refreshes the token before it expires and hands the new one to the socket", async () => {
     await start();
     const fetchToken = client().authFetcher!;

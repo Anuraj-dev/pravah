@@ -165,4 +165,3 @@ export async function runWatchCommand(args: ParsedArgs): Promise<void> {
     process.stderr.write(`pravah watch writing ${snapshotPath} — Ctrl-C to stop\n`);
   }
 }
-

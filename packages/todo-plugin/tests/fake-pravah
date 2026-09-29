@@ -131,7 +131,7 @@ tasks = [
         "title": "Already finished",
         "status": "completed",
         "deadline": today_s,
-        "completedAt": 1,
+        "completedAt": int(dt.datetime.combine(today, dt.time(12, 0)).timestamp() * 1000),
     },
     {
         "id": "t_cancelled",

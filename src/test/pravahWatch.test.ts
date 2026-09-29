@@ -154,11 +154,12 @@ describe("buildSnapshot", () => {
     expect(snapshot.tasks.find((task) => task.id === "t2")?.goalId).toBeUndefined();
   });
 
-  it("rolls completed links into per-goal progress", () => {
+  it("rolls completed links into per-goal progress without double-counting", () => {
     const snapshot = buildSnapshot(source);
     // g1 is linked to one board task (t1) and one task completed today (t4).
+    // linkedTasks counts active links only; the completion is counted once.
     const goal = snapshot.goals.find((candidate) => candidate.id === "g1");
-    expect(goal).toMatchObject({ linkedTasks: 2, completedTasks: 1 });
+    expect(goal).toMatchObject({ linkedTasks: 1, completedTasks: 1 });
     const unlinked = snapshot.goals.find((candidate) => candidate.id === "g2");
     expect(unlinked).toMatchObject({ linkedTasks: 0, completedTasks: 0 });
   });
@@ -174,6 +175,121 @@ describe("buildSnapshot", () => {
     } as unknown as WatchSourceData);
     expect(snapshot.counts.active).toBe(0);
     expect(snapshot.goals).toEqual([]);
+  });
+
+  it("maps the exact canonical query shape into the snapshot", () => {
+    // Mirrors `toCanonicalTaskShape` (tasks.ts) and `goals:list` (goals.ts):
+    // `_id` instead of `id`, no `status` field, lifecycle carried by
+    // timestamps and dates.
+    const completedAt = new Date(2026, 8, 28, 9, 15, 0).getTime();
+    const snapshot = buildSnapshot({
+      convexUrl: "https://x.convex.cloud",
+      boardTasks: [
+        {
+          _id: "jd7x",
+          _creationTime: 1,
+          title: "Scheduled thing",
+          description: "details",
+          deadline: "2026-09-28",
+          time: "09:00",
+          scheduledAt: 1,
+          completedAt: undefined,
+          cancelledAt: undefined,
+          position: 0,
+          source: "manual",
+          estimatedMinutes: 30,
+          tags: ["home"],
+          priority: "p1",
+          createdBy: "user",
+          ownerTokenIdentifier: "owner",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+        {
+          _id: "kq2z",
+          _creationTime: 2,
+          title: "Inbox thing",
+          description: undefined,
+          deadline: undefined,
+          time: undefined,
+          scheduledAt: 2,
+          completedAt: undefined,
+          cancelledAt: undefined,
+          position: 1,
+          source: "manual",
+          estimatedMinutes: undefined,
+          tags: [],
+          priority: undefined,
+          createdBy: "user",
+          ownerTokenIdentifier: "owner",
+          createdAt: 2,
+          updatedAt: 2,
+        },
+      ],
+      completedToday: [
+        {
+          _id: "done1",
+          _creationTime: 3,
+          title: "Done thing",
+          description: "finished",
+          deadline: "2026-09-20",
+          time: undefined,
+          scheduledAt: 3,
+          completedAt,
+          cancelledAt: undefined,
+          position: 2,
+          source: "manual",
+          estimatedMinutes: undefined,
+          tags: ["work"],
+          priority: "p2",
+          createdBy: "user",
+          ownerTokenIdentifier: "owner",
+          createdAt: 3,
+          updatedAt: completedAt,
+        },
+      ],
+      goals: [
+        {
+          id: "g1",
+          text: "Ship v2",
+          description: "why",
+          deadline: "2026-10-01",
+          priority: "p1",
+          createdAt: 1,
+        },
+      ],
+      goalLinks: { jd7x: "g1", done1: "g1" },
+      now: NOW,
+    });
+    expect(snapshot.tasks).toHaveLength(3);
+    const scheduled = snapshot.tasks.find((task) => task.id === "jd7x");
+    expect(scheduled).toMatchObject({
+      title: "Scheduled thing",
+      status: "timeline",
+      deadline: "2026-09-28",
+      description: "details",
+      tags: ["home"],
+      estimatedMinutes: 30,
+      goalId: "g1",
+    });
+    const inbox = snapshot.tasks.find((task) => task.id === "kq2z");
+    expect(inbox).toMatchObject({ status: "inbox" });
+    // Completed history is appended so the Completed section and the goal
+    // card see it, while the board counts stay active-only.
+    const done = snapshot.tasks.find((task) => task.id === "done1");
+    expect(done).toMatchObject({ status: "completed", completedAt });
+    expect(snapshot.counts).toMatchObject({
+      active: 2,
+      inbox: 1,
+      timeline: 1,
+      completedToday: 1,
+    });
+    expect(snapshot.goals.find((goal) => goal.id === "g1")).toMatchObject({
+      text: "Ship v2",
+      description: "why",
+      linkedTasks: 1,
+      completedTasks: 1,
+    });
   });
 });
 

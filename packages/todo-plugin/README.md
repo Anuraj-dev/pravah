@@ -124,7 +124,10 @@ stay in the CLI rather than being duplicated in QML. Writes still go over HTTP.
 
 The widget does not fall back to polling when the snapshot is missing or stops
 updating. It shows the failure instead, because silently reverting to polling
-would hide a dead `pravah watch` behind data that looks current.
+would hide a dead `pravah watch` behind data that looks current. The daemon
+heartbeats the snapshot every minute while idle, and the widget rechecks
+freshness on every file change, on a 30s timer, and on manual refresh (right
+click, Refresh button, or the `refresh` IPC method).
 
 Run `pravah watch` yourself, or under a supervisor:
 

@@ -104,6 +104,7 @@ ShellRoot {
 
     var completed = store.normalizeTask({ id: "t4", title: "D", completedAt: 1 })
     eq("norm completedAt", completed.status, "completed")
+    eq("norm completedAt kept", completed.completedAt, 1)
     var cancelled = store.normalizeTask({ id: "t5", title: "E", cancelledAt: 1 })
     eq("norm cancelledAt", cancelled.status, "cancelled")
 
@@ -218,6 +219,11 @@ ShellRoot {
     argvEq("goalAdd", goalAdd, [store.cli, "goals", "add", "--json", "--deadline", "2026-09-11", "--priority", "p1", "--description", "why", "--", "Ship"])
     argvEq("goalRemove", store.goalRemoveArgv({ id: "g1" }), [store.cli, "goals", "remove", "g1", "--json", "--confirm"])
     argvEq("undo", store.undoArgv({ operationId: "op1" }), [store.cli, "operations", "undo", "op1", "--json"])
+
+    // An unchanged goal editor must not submit a no-op write.
+    var goalBefore = { id: "g1", text: "Ship", description: "why", deadline: "2026-09-11", priority: "p1" }
+    eq("goalEdit noop", store.goalEditArgv(goalBefore, { title: "Ship", description: "why", deadline: "2026-09-11", priority: "p1" }).length, 5)
+    ok("goalEdit changed", store.goalEditArgv(goalBefore, { title: "Ship", description: "new", deadline: "2026-09-11", priority: "p1" }).length > 5)
 
     var writeFlags = ["--dry-run", "--idempotency-key", "omarchy-widget-test"]
     argvEq("withWriteFlags add before --", store.withWriteFlags(addDefault, writeFlags), [
@@ -398,6 +404,37 @@ ShellRoot {
     eq("watch goal progress completed", goal.progress.completed, 2)
     eq("watch goal progress active", goal.progress.active, 1)
     eq("watch goal linked task count", goal.activeTasks.length, 1)
+
+    // Canonical backend shape: `_id` with no `status`, lifecycle carried by
+    // timestamps and dates, plus the editor fields the snapshot must carry.
+    var noon = new Date(2026, 4, 4, 12, 0, 0).getTime()
+    watchStore.applySnapshotText(JSON.stringify({
+      version: 1, generatedAt: Date.now(), day: "2026-05-04",
+      counts: {},
+      tasks: [
+        { _id: "c_board", title: "Canon board", deadline: "2026-05-04", description: "d", tags: ["h"], estimatedMinutes: 20, goalId: "g9" },
+        { _id: "c_done", title: "Canon done", deadline: "2026-04-01", completedAt: noon, description: "did", tags: ["w"], estimatedMinutes: 5, goalId: "g9" }
+      ],
+      goals: [{ id: "g9", text: "Canon goal", description: "why", linkedTasks: 1, completedTasks: 1 }]
+    }))
+    eq("watch canonical board kept", watchStore.todayTasks.length, 1)
+    var canon = null
+    for (var m = 0; m < watchStore.allTasks.length; m++)
+      if (watchStore.allTasks[m].id === "c_board") canon = watchStore.allTasks[m]
+    ok("watch canonical task found", canon !== null)
+    eq("watch canonical description", canon.description, "d")
+    eq("watch canonical tags", canon.tags.join(","), "h")
+    eq("watch canonical estimate", canon.estimatedMinutes, 20)
+    // The completion counts by completedAt day, not by deadline.
+    eq("watch canonical completed", watchStore.completedToday.length, 1)
+    eq("watch canonical completed id", watchStore.completedToday[0].id, "c_done")
+    eq("watch canonical goal description", watchStore.goals[0].description, "why")
+
+    // A manual refresh in watch mode rereads the file without HTTP reads.
+    var readsBefore = watchStore._readQueue.length
+    watchStore.refresh(true)
+    eq("watch manual refresh syncing", watchStore.syncing, true)
+    ok("watch manual refresh spawns no HTTP read", watchStore._readQueue.length === readsBefore)
 
     // A stale snapshot must be reported, not silently accepted.
     watchStore.applySnapshotText(JSON.stringify({

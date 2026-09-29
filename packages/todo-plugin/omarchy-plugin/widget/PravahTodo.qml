@@ -573,7 +573,9 @@ BarWidget {
 
       onSaveRequested: function(fields) {
         goalEditor.close()
-        if (editingGoal) store.submitWrite(store.goalEditArgv(editingGoal, fields), "Saving goal…")
+        // goalEditArgv is just the base argv when nothing changed; submitting
+        // that would be a no-op write, so skip it like the task editor does.
+        if (editingGoal) { var goalArgv = store.goalEditArgv(editingGoal, fields); if (goalArgv.length > 5) store.submitWrite(goalArgv, "Saving goal…") }
         else store.submitWrite(store.goalAddArgv(fields), "Creating goal…")
       }
       onCanceled: goalEditor.close()

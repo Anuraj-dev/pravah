@@ -21,7 +21,9 @@ import Quickshell.Io
 //   reads the snapshot `pravah watch` maintains, so reads cost no network
 //   and no process spawn. In watch mode a missing or stale snapshot is
 //   reported, never silently replaced by an HTTP poll: falling back would
-//   hide a dead `pravah watch` behind plausible-looking data.
+//   hide a dead `pravah watch` behind plausible-looking data. The daemon
+//   heartbeats `generatedAt` while idle; the widget rechecks freshness on
+//   every load/change, on a 30s timer, and on manual refresh.
 // - Writes always run over HTTP in both transports.
 QtObject {
   id: root
@@ -150,8 +152,14 @@ QtObject {
 
   readonly property var completedToday: {
     var out = []
-    for (var i = 0; i < allTasks.length; i++)
-      if (allTasks[i].status === "completed" && allTasks[i].deadline === today) out.push(allTasks[i])
+    for (var i = 0; i < allTasks.length; i++) {
+      if (allTasks[i].status !== "completed") continue
+      // Completion is determined by completedAt; fall back to the deadline
+      // for records that predate the timestamp.
+      if (allTasks[i].completedAt) {
+        if (snapshotDay(allTasks[i].completedAt) === today) out.push(allTasks[i])
+      } else if (allTasks[i].deadline === today) out.push(allTasks[i])
+    }
     out.sort(byDue)
     return out
   }
@@ -212,6 +220,13 @@ QtObject {
 
   function readDate(value) {
     return (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) ? value : ""
+  }
+
+  // Local day of a millisecond timestamp, for matching completedAt against
+  // `today`. Returns "" for anything that is not a timestamp.
+  function snapshotDay(ms) {
+    if (typeof ms !== "number" || !isFinite(ms) || ms <= 0) return ""
+    return Qt.formatDate(new Date(ms), "yyyy-MM-dd")
   }
 
   function readTime(value) {
@@ -282,6 +297,8 @@ QtObject {
       priority: (t.priority === "p1" || t.priority === "p2" || t.priority === "p3") ? t.priority : "",
       tags: tags,
       estimatedMinutes: typeof t.estimatedMinutes === "number" ? t.estimatedMinutes : 0,
+      // Millisecond timestamp; 0 means absent. Drives the Completed section.
+      completedAt: typeof t.completedAt === "number" && isFinite(t.completedAt) ? t.completedAt : 0,
       // Only the watch snapshot carries this; `tasks list` leaves it empty and
       // the goal is stitched from `goals list` as before.
       goalId: typeof t.goalId === "string" ? t.goalId : "",
@@ -370,9 +387,14 @@ QtObject {
     var nowDate = Qt.formatDate(new Date(), "yyyy-MM-dd")
     var dateChanged = (nowDate !== today)
     today = nowDate
-    // In watch mode the FileView pushes updates; the poll timer has nothing
-    // to do and must not spawn reads.
-    if (watching) return
+    // In watch mode the FileView pushes updates and the poll timer stays off;
+    // a manual refresh rereads the file and reports watcher health instead of
+    // polling HTTP.
+    if (watching) {
+      if (force === true || dateChanged) refreshWatch()
+      else checkWatchFreshness()
+      return
+    }
     if (force !== true && !dateChanged) {
       var now = Date.now()
       if (_lastSuccessMs > 0 && now - _lastSuccessMs < 60000) return
@@ -443,17 +465,65 @@ QtObject {
   // FileView read never observes a half-written file. The one-time `watch
   // --path` call keeps the XDG resolution rules in the CLI rather than
   // duplicating them here.
-  FileView {
+  //
+  // FileView must live in a property: QtObject has no default property, so a
+  // bare FileView child fails the whole component with "Cannot assign to
+  // non-existent default property" before any transport is even selected.
+  // FileView also caches its content: onFileChanged must reload() and the
+  // parse must happen in onLoaded, otherwise updates reread stale text.
+  property FileView snapshotView: FileView {
     id: snapshotView
     path: root.snapshotPath
     watchChanges: true
     blockLoading: false
-    onLoaded: function() { root.applySnapshotText(text()) }
-    onFileChanged: function() { root.applySnapshotText(text()) }
+    onLoaded: function() { root.applySnapshotText(snapshotView.text()) }
+    onFileChanged: function() { snapshotView.reload() }
     onLoadFailed: function() {
+      root.syncing = false
       root.snapshotStale = false
       root.lastError = "pravah watch is not publishing a snapshot — start it with `pravah watch`"
     }
+  }
+
+  // The daemon heartbeats `generatedAt` every minute while idle, so a file
+  // whose timestamp stops advancing means the daemon died. Checked on every
+  // load/change and on a small timer, because a healthy idle socket would
+  // otherwise look identical to a dead one.
+  property double _lastSnapshotMs: 0
+  property Timer watchFreshTimer: Timer {
+    interval: 30000
+    running: root.watching
+    repeat: true
+    onTriggered: root.checkWatchFreshness()
+  }
+
+  function checkWatchFreshness() {
+    if (!watching || !snapshotResolved) return
+    if (_lastSnapshotMs <= 0) {
+      if (snapshotPath !== "") {
+        snapshotStale = true
+        if (lastError === "") lastError = "pravah watch is not publishing a snapshot — start it with `pravah watch`"
+      }
+      return
+    }
+    var stale = (Date.now() - _lastSnapshotMs) > 600000
+    snapshotStale = stale
+    if (stale) lastError = "pravah watch stopped updating — restart it with `pravah watch`"
+    else if (lastError === "pravah watch stopped updating — restart it with `pravah watch`") lastError = ""
+  }
+
+  // Manual refresh in watch mode: reread the file and surface watcher health.
+  // Never falls back to HTTP polling — that would hide a dead `pravah watch`
+  // behind plausible-looking data.
+  function refreshWatch() {
+    if (!snapshotResolved) resolveSnapshotPathFromCli()
+    if (snapshotPath === "") {
+      if (snapshotResolved) lastError = "Pravah reported an empty watch snapshot path"
+      return
+    }
+    syncing = true
+    snapshotView.reload()
+    checkWatchFreshness()
   }
 
   function resolveSnapshotPathFromCli() {
@@ -503,7 +573,7 @@ QtObject {
       normGoals.push({
         id: raw_.id,
         text: raw_.text,
-        description: "",
+        description: typeof raw_.description === "string" ? raw_.description : "",
         deadline: readDate(raw_.deadline),
         priority: (raw_.priority === "p1" || raw_.priority === "p2" || raw_.priority === "p3") ? raw_.priority : "",
         progress: {
@@ -523,10 +593,10 @@ QtObject {
     lastSyncAt = Qt.formatTime(new Date(), "HH:mm")
     _lastSuccessMs = Date.now()
     _failCount = 0
+    _lastSnapshotMs = typeof snap.generatedAt === "number" ? snap.generatedAt : Date.now()
     // A snapshot that stopped advancing means the daemon died. Say so rather
     // than showing data that looks current.
-    snapshotStale = typeof snap.generatedAt === "number" && (Date.now() - snap.generatedAt) > 600000
-    if (snapshotStale) lastError = "pravah watch stopped updating — restart it with `pravah watch`"
+    checkWatchFreshness()
   }
 
   function loadOperations() {

@@ -36,6 +36,13 @@ export interface OwnerToken {
 /** Refresh a little before expiry so a long-lived socket is never left unauthenticated. */
 const TOKEN_REFRESH_SKEW_MS = 60 * 1000;
 
+/**
+ * Re-publish the latest snapshot this often even when no query changed, so a
+ * healthy but idle websocket still advances `generatedAt` and the widget can
+ * tell "alive" apart from "daemon died right after publishing".
+ */
+export const WATCH_HEARTBEAT_MS = 60 * 1000;
+
 export async function fetchOwnerToken(
   siteUrl: string,
   bearerToken: string
@@ -190,6 +197,7 @@ export async function runWatch({
   // partial snapshot is never written.
   const ready = notReady();
   let midnightTimer: ReturnType<typeof setTimeout> | undefined;
+  let heartbeatTimer: ReturnType<typeof setInterval> | undefined;
 
   const publish = () => {
     if (!SOURCE_KEYS.every((key) => ready[key])) return;
@@ -274,10 +282,19 @@ export async function runWatch({
     throwOnAuthError(error);
   }
   scheduleMidnightResubscribe();
+  heartbeatTimer = setInterval(() => {
+    publish();
+  }, WATCH_HEARTBEAT_MS);
+  // Do not hold the process open for a heartbeat tick.
+  heartbeatTimer.unref?.();
 
   return {
     async close() {
       if (midnightTimer) clearTimeout(midnightTimer);
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+        heartbeatTimer = undefined;
+      }
       for (const unsubscribe of unsubscribes) unsubscribe();
       unsubscribes = [];
       await client.close();

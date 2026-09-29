@@ -35,10 +35,12 @@ export PRAVAH_FAKE_SNAPSHOT="$WORKDIR/snapshot.json"
 : >"$PRAVAH_FAKE_LOG"
 
 # A stand-in for the file `pravah watch` maintains, so the watch-transport
-# tests read a real file through the widget's FileView.
-cat >"$PRAVAH_FAKE_SNAPSHOT" <<'JSON'
+# tests read a real file through the widget's FileView. generatedAt is stamped
+# at setup so the freshness check sees a live daemon, not a stale file.
+cat >"$PRAVAH_FAKE_SNAPSHOT" <<JSON
 {
   "version": 1,
+  "generatedAt": $(date +%s%3N),
   "day": "2026-05-04",
   "convexUrl": "https://test.invalid.convex.cloud",
   "counts": { "active": 2, "inbox": 1, "timeline": 1, "overdue": 1, "completedToday": 2, "goals": 1 },
