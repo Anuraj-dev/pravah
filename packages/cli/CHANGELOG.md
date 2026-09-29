@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.1](https://github.com/Snehit70/pravah/compare/cli-v2.4.0...cli-v2.4.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* **cli:** migrate legacy site URL for watch connections ([#255](https://github.com/Snehit70/pravah/issues/255)) ([0dac6b6](https://github.com/Snehit70/pravah/commit/0dac6b6cb9c4d65d8915f391106f81eb959a80e7))
+
 ## [2.4.0](https://github.com/Snehit70/pravah/compare/cli-v2.3.0...cli-v2.4.0) (2026-09-29)
 
 
