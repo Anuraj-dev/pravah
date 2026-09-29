@@ -41,6 +41,13 @@ export interface WatchSnapshot {
   /** Local YYYY-MM-DD the `today` counts refer to. */
   day: string;
   convexUrl: string;
+  /**
+   * Subscribed queries currently failing (e.g. `goals:list`). Empty or absent
+   * means healthy. A snapshot carrying errors holds the last complete data,
+   * never a partial read — consumers must surface the failure instead of
+   * treating the data as current.
+   */
+  errors?: string[];
   counts: {
     active: number;
     inbox: number;

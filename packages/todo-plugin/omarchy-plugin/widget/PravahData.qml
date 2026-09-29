@@ -597,6 +597,17 @@ QtObject {
     // A snapshot that stopped advancing means the daemon died. Say so rather
     // than showing data that looks current.
     checkWatchFreshness()
+    // A degraded snapshot carries the last complete data plus the failing
+    // queries. Surface it even when the timestamp is fresh — the heartbeat
+    // stops advancing while any source is failing, so age alone would lag.
+    var snapErrors = []
+    if (Array.isArray(snap.errors))
+      for (var e = 0; e < snap.errors.length; e++)
+        if (typeof snap.errors[e] === "string" && snap.errors[e] !== "") snapErrors.push(snap.errors[e])
+    if (snapErrors.length > 0) {
+      snapshotStale = true
+      lastError = "pravah watch subscription failed: " + snapErrors.join(", ")
+    }
   }
 
   function loadOperations() {

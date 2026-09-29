@@ -430,6 +430,21 @@ ShellRoot {
     eq("watch canonical completed id", watchStore.completedToday[0].id, "c_done")
     eq("watch canonical goal description", watchStore.goals[0].description, "why")
 
+    // A degraded snapshot surfaces the failing query instead of looking current.
+    watchStore.applySnapshotText(JSON.stringify({
+      version: 1, generatedAt: Date.now(), day: "2026-05-04",
+      counts: {}, tasks: [], goals: [], errors: ["goals:list"]
+    }))
+    eq("watch error flagged stale", watchStore.snapshotStale, true)
+    ok("watch error names the query", watchStore.lastError.indexOf("goals:list") !== -1)
+    // Recovery clears it.
+    watchStore.applySnapshotText(JSON.stringify({
+      version: 1, generatedAt: Date.now(), day: "2026-05-04",
+      counts: {}, tasks: [], goals: []
+    }))
+    eq("watch error cleared", watchStore.lastError, "")
+    eq("watch stale cleared", watchStore.snapshotStale, false)
+
     // A manual refresh in watch mode rereads the file without HTTP reads.
     var readsBefore = watchStore._readQueue.length
     watchStore.refresh(true)

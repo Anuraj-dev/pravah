@@ -196,11 +196,17 @@ export async function runWatch({
   // Only publish once every subscription has produced its first value, so a
   // partial snapshot is never written.
   const ready = notReady();
+  // Queries currently failing. While any entry is present the snapshot is
+  // degraded: healthy heartbeats stop and resume only after every source
+  // delivers a fresh value again.
+  const sourceErrors = new Map<SourceKey, string>();
+  let hasPublished = false;
   let midnightTimer: ReturnType<typeof setTimeout> | undefined;
   let heartbeatTimer: ReturnType<typeof setInterval> | undefined;
 
   const publish = () => {
     if (!SOURCE_KEYS.every((key) => ready[key])) return;
+    hasPublished = true;
     onSnapshot(
       buildSnapshot({
         convexUrl,
@@ -213,16 +219,45 @@ export async function runWatch({
     );
   };
 
+  // A failing source must be visible in the file, not hidden behind a
+  // heartbeat that keeps stamping fresh `generatedAt` on cached data. Emit
+  // the last complete snapshot marked with the failing queries; the regular
+  // heartbeat path stays gated on `publish`, so it resumes only after fresh
+  // results clear every error.
+  const publishDegraded = () => {
+    // Only ever mark the last complete data, never a partial read: after a
+    // re-subscribe the sources are null until each one redelivers.
+    if (!hasPublished) return;
+    if (!SOURCE_KEYS.every((key) => latest[key] !== null)) return;
+    onSnapshot({
+      ...buildSnapshot({
+        convexUrl,
+        boardTasks: latest.boardTasks,
+        completedToday: latest.completedToday,
+        goals: latest.goals,
+        goalLinks: latest.goalLinks,
+        now: new Date(now()),
+      }),
+      errors: SOURCE_KEYS.filter((key) => sourceErrors.has(key)).map(
+        (key) => sourceErrors.get(key) as string
+      ),
+    });
+  };
+
   const track = (name: SourceKey) => (value: unknown) => {
     latest[name] = value;
     ready[name] = true;
+    sourceErrors.delete(name);
     publish();
   };
 
   // Name the Convex query, not the internal key, so the log is actionable.
-  const failed = (query: string) => (error: unknown) => {
+  const failed = (query: string, key: SourceKey) => (error: unknown) => {
     reportAsync(error);
     log(`watch: ${query} subscription failed`);
+    ready[key] = false;
+    sourceErrors.set(key, query);
+    publishDegraded();
   };
 
   const scheduleMidnightResubscribe = () => {
@@ -240,20 +275,25 @@ export async function runWatch({
         listBoardTasks,
         {},
         track("boardTasks"),
-        failed("tasks:listBoardTasks")
+        failed("tasks:listBoardTasks", "boardTasks")
       ),
       client.onUpdate(
         listTodayCompletedTasks,
         { dayStartMs: startMs, dayEndMs: endMs },
         track("completedToday"),
-        failed("tasks:listTodayCompletedTasks")
+        failed("tasks:listTodayCompletedTasks", "completedToday")
       ),
-      client.onUpdate(listGoals, {}, track("goals"), failed("goals:list")),
+      client.onUpdate(
+        listGoals,
+        {},
+        track("goals"),
+        failed("goals:list", "goals")
+      ),
       client.onUpdate(
         listGoalLinks,
         {},
         track("goalLinks"),
-        failed("goals:listLinks")
+        failed("goals:listLinks", "goalLinks")
       ),
     ];
   };
@@ -267,6 +307,7 @@ export async function runWatch({
       ready[key] = false;
       latest[key] = null;
     }
+    sourceErrors.clear();
     try {
       unsubscribes = subscribe();
     } catch (error) {

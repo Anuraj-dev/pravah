@@ -243,6 +243,61 @@ describe("runWatch", () => {
     expect(snapshots).toHaveLength(1);
   });
 
+  it("marks the snapshot degraded on subscription error and withholds heartbeats until fresh results", async () => {
+    await start();
+    for (const [name, value] of [
+      ["tasks:listBoardTasks", BOARD],
+      ["tasks:listTodayCompletedTasks", DONE],
+      ["goals:list", GOALS],
+      ["goals:listLinks", LINKS],
+    ] as const) {
+      client().named(name)[0]!.onValue(value);
+    }
+    expect(snapshots).toHaveLength(1);
+    expect(snapshots[0]!.errors ?? []).toEqual([]);
+
+    client().named("goals:list")[0]!.onError(new Error("boom"));
+    expect(snapshots).toHaveLength(2);
+    // The failure is visible in the file with the last complete data, not a
+    // fresh timestamp on silently cached rows.
+    expect(snapshots[1]!.errors).toEqual(["goals:list"]);
+    expect(snapshots[1]!.tasks).toEqual(snapshots[0]!.tasks);
+
+    // No healthy heartbeat while the source is failing.
+    clock += 61 * 1000;
+    vi.advanceTimersByTime(61 * 1000);
+    expect(snapshots).toHaveLength(2);
+
+    // A fresh value clears the error and resumes normal publishes.
+    client().named("goals:list")[0]!.onValue(GOALS);
+    expect(snapshots).toHaveLength(3);
+    expect(snapshots[2]!.errors ?? []).toEqual([]);
+
+    clock += 61 * 1000;
+    vi.advanceTimersByTime(61 * 1000);
+    expect(snapshots).toHaveLength(4);
+    expect(snapshots[3]!.errors ?? []).toEqual([]);
+  });
+
+  it("withholds a degraded snapshot until the first complete data arrives", async () => {
+    await start();
+    // An error before every source delivers must not publish a partial board.
+    client().named("goals:list")[0]!.onError(new Error("early"));
+    expect(snapshots).toHaveLength(0);
+
+    for (const [name, value] of [
+      ["tasks:listBoardTasks", BOARD],
+      ["tasks:listTodayCompletedTasks", DONE],
+      ["goals:list", GOALS],
+      ["goals:listLinks", LINKS],
+    ] as const) {
+      client().named(name)[0]!.onValue(value);
+    }
+    // The redelivery clears the error, so this is healthy, not degraded.
+    expect(snapshots).toHaveLength(1);
+    expect(snapshots[0]!.errors ?? []).toEqual([]);
+  });
+
   it("refreshes the token before it expires and hands the new one to the socket", async () => {
     await start();
     const fetchToken = client().authFetcher!;
