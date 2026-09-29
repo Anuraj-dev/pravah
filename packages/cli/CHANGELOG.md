@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.0](https://github.com/Snehit70/pravah/compare/cli-v2.4.1...cli-v2.5.0) (2026-09-29)
+
+
+### Features
+
+* **cli:** render watch waybar segment as today's next task ([#257](https://github.com/Snehit70/pravah/issues/257)) ([e289477](https://github.com/Snehit70/pravah/commit/e2894775eecf888d0d21dcfcebd5d285412b7e97))
+
 ## [2.4.1](https://github.com/Snehit70/pravah/compare/cli-v2.4.0...cli-v2.4.1) (2026-09-29)
 
 
