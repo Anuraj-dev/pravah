@@ -262,12 +262,14 @@ Surfaces that already honor it:
 - settings section-jump scroll: jumps without scroll animation
 - Kairo advanced section reveal: skips fade entering/exiting
 - launch handoff overlay: drops the crossfade and cuts directly to the shell
+- auth ambient ribbon field: pins drift to zero, keeping the same layout
 
 Rules for new motion:
 
 - never gate correctness on animation completion
 - if a surface plays a repeating animation, it must check `useReducedMotion` and provide a static equivalent
 - prefer dropping competing per-card entrance animations entirely over making them all conditional — the settings sheet now uses no per-card `FadeInDown` so the section reveal feels like one quiet surface instead of four overlapping ones
+- for soft-edged decorative shapes, do not offset a curve outward to fake a soft edge — see `docs/ambient-background.md` for the rail/curvature constraint and the blob-chain approach that avoids it
 
 ## Android Ergonomics
 
