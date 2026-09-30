@@ -1,14 +1,14 @@
 /**
  * KairoChatList
  *
- * Inline panel rendered inside the Kairo bottom sheet when the user opens
- * the chat menu. Lists past chats (newest first), offers a "New chat" CTA,
- * and a destructive delete row gated behind a native confirm.
+ * The chat-history page inside Kairo, shown when the user opens the chat
+ * menu. Lists past chats (newest first), offers a "New chat" CTA, and a
+ * destructive delete row gated behind a native confirm.
  */
 
 import { useMemo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { ChatMeta } from "../lib/kairoChatStorage";
 import { formatRelative } from "../lib/formatRelative";
 import { colors, radii, spacing, typography } from "../theme/tokens";
@@ -34,6 +34,7 @@ export function KairoChatList({
   onClose,
 }: Props) {
   const confirm = useConfirm();
+  const insets = useSafeAreaInsets();
   const sorted = useMemo(
     () => [...chats].sort((a, b) => b.updatedAt - a.updatedAt),
     [chats]
@@ -41,7 +42,7 @@ export function KairoChatList({
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <Pressable
           onPress={onClose}
           hitSlop={12}
@@ -69,7 +70,14 @@ export function KairoChatList({
         </Pressable>
       </View>
 
-      <BottomSheetScrollView contentContainerStyle={styles.listContent}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: insets.bottom + spacing.lg },
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         {sorted.length === 0 ? (
           <View style={styles.empty}>
             <View style={styles.emptyIconWrap}>
@@ -128,7 +136,7 @@ export function KairoChatList({
             );
           })
         )}
-      </BottomSheetScrollView>
+      </ScrollView>
     </View>
   );
 }
@@ -142,7 +150,6 @@ const styles = createThemedStyles({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
     paddingBottom: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.borderSubtle,

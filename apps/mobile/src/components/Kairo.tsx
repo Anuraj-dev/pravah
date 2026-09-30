@@ -1,26 +1,23 @@
 import {
-  forwardRef,
   useCallback,
   useEffect,
-  useImperativeHandle,
   useMemo,
   useRef,
   useState,
 } from "react";
 import {
   ActivityIndicator,
+  BackHandler,
+  FlatList,
   Keyboard,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
-import BottomSheet, {
-  BottomSheetBackdrop,
-  BottomSheetScrollView,
-  BottomSheetTextInput,
-  type BottomSheetBackdropProps,
-} from "@gorhom/bottom-sheet";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import * as Clipboard from "expo-clipboard";
 import Animated, {
   Easing,
@@ -79,15 +76,10 @@ import { useGoalLinks, useGoals } from "../hooks/useGoals";
 import { KairoChatList } from "./KairoChatList";
 import { KairoMarkdown } from "./KairoMarkdown";
 import { haptic } from "../lib/haptic";
-import { useKeyboardInset } from "../hooks/useKeyboardInset";
+import { useReducedMotion } from "../hooks/useReducedMotion";
 import { useConfirm } from "../hooks/useConfirm";
 
-export type KairoSheetRef = {
-  open: () => void;
-  close: () => void;
-};
-
-type KairoProps = {
+export type KairoProps = {
   /** All loaded tasks across tabs — used to build the model's context. */
   tasks: KairoTaskInput[];
   /** Inbox tasks specifically (sometimes a separate query in the parent). */
@@ -95,9 +87,10 @@ type KairoProps = {
   /** True when the full-corpus query has resolved. Prevents sending messages
    *  with an empty or partial workspace snapshot on cold start. */
   isAllTasksReady: boolean;
-  /** Notify the parent when the sheet opens/closes so it can dim the rest of
-   *  the app, matching web's 0.38-opacity fade behind the active Kairo. */
-  onActiveChange?: (active: boolean) => void;
+  /** Controlled visibility — the page opens and closes on the parent's flag. */
+  visible: boolean;
+  /** Dismiss the page. Also the Android hardware-back target. */
+  onClose: () => void;
   /** Called when the user taps "Configure" on the unconfigured empty state. */
   onOpenSettings?: () => void;
 };
@@ -182,26 +175,23 @@ type KairoChatRow =
   | { kind: "thinking"; id: string };
 
 /**
- * Mobile Kairo. Presents as a near-full-screen bottom sheet that takes the
- * app over when active. The parent uses the `onActiveChange` callback to
- * dim everything behind it (web parity: src/components/AuthenticatedApp.tsx
- * lines 130-132).
+ * Mobile Kairo. A full-screen page — its own modal window, not a panel over
+ * the workspace. The parent owns visibility through `visible`/`onClose`.
  *
- * Provider support is deliberately kept narrow — Anthropic and OpenAI, both
- * via plain fetch with a user-supplied API key. The key is stored in
- * expo-secure-store via `lib/kairoConfig.ts`, never sent to our servers.
+ * Provider support is deliberately kept narrow — Anthropic, OpenAI, and
+ * Gemini, all via plain fetch with a user-supplied API key. The key is stored
+ * in expo-secure-store via `lib/kairoConfig.ts`, never sent to our servers.
  */
-export const Kairo = forwardRef<KairoSheetRef, KairoProps>(function Kairo(
-  { tasks, inboxTasks, isAllTasksReady, onActiveChange, onOpenSettings },
-  ref
-) {
-  const sheetRef = useRef<BottomSheet>(null);
+export function Kairo({
+  tasks,
+  inboxTasks,
+  isAllTasksReady,
+  visible,
+  onClose,
+  onOpenSettings,
+}: KairoProps) {
   const insets = useSafeAreaInsets();
-  const bottomInset = useKeyboardInset(insets.bottom);
-  const keyboardLift = Math.max(0, bottomInset - spacing.lg);
-  const [mounted, setMounted] = useState(false);
-  const [open, setOpen] = useState(false);
-  const hasPresentedRef = useRef(false);
+  const reducedMotion = useReducedMotion();
   const [val, setVal] = useState("");
   const [thinking, setThinking] = useState(false);
   const [config, setConfig] = useState<KairoConfig | null>(null);
@@ -220,11 +210,10 @@ export const Kairo = forwardRef<KairoSheetRef, KairoProps>(function Kairo(
   // "chat" shows the active conversation, "list" shows the chat picker.
   const [view, setView] = useState<"chat" | "list">("chat");
   // Local-date snapshot used to derive starters. Refreshed each time the
-  // sheet opens so an app left mounted across midnight still picks up the
+  // page opens so an app left mounted across midnight still picks up the
   // new day's "What's on today?" / overdue counts on next visit.
   const [today, setToday] = useState(() => getLocalDateString());
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const listRef = useRef<any>(null);
+  const listRef = useRef<FlatList<KairoChatRow>>(null);
   // Undo closures keyed by KairoMessageAction.id. Held in a ref so the closure
   // identity is stable across renders; messages only carry the serializable
   // chip state and reference back into this map by id.
@@ -259,39 +248,18 @@ export const Kairo = forwardRef<KairoSheetRef, KairoProps>(function Kairo(
   const { goals } = useGoals();
   const goalLinks = useGoalLinks();
 
-  // Single snap point at 92% — leaves a sliver of the dimmed app visible at
-  // the top as a peek, the same affordance the web overlay leaves.
-  const snapPoints = useMemo(() => ["92%"], []);
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      open: () => {
-        hasPresentedRef.current = false;
-        setMounted(true);
-        setOpen(true);
-      },
-      close: () => sheetRef.current?.close(),
-    }),
-    []
-  );
-
-  useEffect(() => {
-    onActiveChange?.(open);
-  }, [open, onActiveChange]);
-
-  // Reload Kairo config every time the sheet opens — the user might have
+  // Reload Kairo config every time the page opens — the user might have
   // edited their API key in the Settings sheet between visits. Also refresh
   // `today` so the starters memo recomputes if the app sat idle past midnight.
   useEffect(() => {
-    if (!open) return;
+    if (!visible) return;
     const refreshToday = () =>
       setToday((prev) => {
         const now = getLocalDateString();
         return prev === now ? prev : now;
       });
     refreshToday();
-    // Tick every minute so a midnight rollover while the sheet is open still
+    // Tick every minute so a midnight rollover while the page is open still
     // recomputes starters without needing a close/re-open.
     const timer = setInterval(refreshToday, 60_000);
     let cancelled = false;
@@ -311,16 +279,7 @@ export const Kairo = forwardRef<KairoSheetRef, KairoProps>(function Kairo(
       cancelled = true;
       clearInterval(timer);
     };
-  }, [open]);
-
-  useEffect(() => {
-    if (msgs.length === 0 && !thinking && !deferredPromptPreview) return;
-    // Defer scroll-to-end so the new content is laid out before we measure.
-    // Deferred prompt previews append two bubbles outside of `msgs`, so
-    // include them in the dependency list to keep the queued send visible.
-    const t = setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
-    return () => clearTimeout(t);
-  }, [msgs, thinking, deferredPromptPreview]);
+  }, [visible]);
 
   const chatRows = useMemo<KairoChatRow[]>(() => {
     const rows: KairoChatRow[] = msgs.map((message, index) => ({
@@ -348,7 +307,7 @@ export const Kairo = forwardRef<KairoSheetRef, KairoProps>(function Kairo(
     () => buildKairoStarters(tasks, inboxTasks, today),
     [tasks, inboxTasks, today]
   );
-  const isConfigPending = open && !configLoaded;
+  const isConfigPending = visible && !configLoaded;
   const isConfigured = configLoaded && config ? isKairoConfigured(config) : false;
   const setupSummary = config
     ? `${getKairoProviderLabel(config.providerFormat)} · ${config.model}`
@@ -480,6 +439,12 @@ export const Kairo = forwardRef<KairoSheetRef, KairoProps>(function Kairo(
     [handleCopyMessage, handleRetry, handleUndo, statusLabel]
   );
 
+  // Content-size changes already arrive after layout, so this replaces the
+  // old setTimeout-then-measure dance the scroll view needed.
+  const handleScrollToEnd = useCallback(() => {
+    listRef.current?.scrollToEnd({ animated: true });
+  }, []);
+
   // Two-tap Stop: first tap arms (auto-disarms after 3s), second confirms by
   // flagging cancellation and aborting the in-flight request. Mutations already
   // applied stay (with their undo chips); we never interrupt one mid-flight.
@@ -501,27 +466,28 @@ export const Kairo = forwardRef<KairoSheetRef, KairoProps>(function Kairo(
     }
   }, [stopArmed, thinking]);
 
-  const handleSheetChange = useCallback((index: number) => {
-    setOpen(index >= 0);
-    if (index >= 0) {
-      hasPresentedRef.current = true;
-    } else if (hasPresentedRef.current) {
-      setMounted(false);
+  // Back unwinds Kairo's own navigation stack before dismissing the page:
+  // history view → chat → close. Wired to both Modal's `onRequestClose` and a
+  // BackHandler subscription, because an Android modal is its own window — it
+  // consumes the key and calls `onRequestClose` without the press ever
+  // reaching the JS handler. Same handler both ways, so the outcome can't
+  // diverge by platform. (Matches SettingsSheet's detail/list back contract.)
+  const handleBack = useCallback(() => {
+    if (view === "list") {
+      setView("chat");
+      return;
     }
-  }, []);
+    onClose();
+  }, [view, onClose]);
 
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        appearsOnIndex={0}
-        disappearsOnIndex={-1}
-        opacity={0.6}
-        pressBehavior="close"
-      />
-    ),
-    []
-  );
+  useEffect(() => {
+    if (!visible) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      handleBack();
+      return true;
+    });
+    return () => sub.remove();
+  }, [visible, handleBack]);
 
   const sendMessage = useCallback(
     async (text: string, options?: { replayDeferred?: boolean }) => {
@@ -855,27 +821,19 @@ export const Kairo = forwardRef<KairoSheetRef, KairoProps>(function Kairo(
     [activeChat?.id, clearDeferred, deleteChat, thinking]
   );
 
-  if (!mounted) return null;
-
   return (
-    <BottomSheet
-      ref={sheetRef}
-      index={0}
-      snapPoints={snapPoints}
-      // v5 defaults enableDynamicSizing to true, which makes the sheet
-      // measure its children's intrinsic height and ignore snapPoints.
-      // Our children are plain <View>s with no fixed height, so the sheet
-      // collapses to 0px and never visibly appears. Pin to snapPoints.
-      enableDynamicSizing={false}
-      enablePanDownToClose
-      onChange={handleSheetChange}
-      backdropComponent={renderBackdrop}
-      handleIndicatorStyle={styles.indicator}
-      backgroundStyle={styles.sheetBg}
-      keyboardBehavior="extend"
-      keyboardBlurBehavior="restore"
-      android_keyboardInputMode="adjustResize"
+    <Modal
+      visible={visible}
+      presentationStyle="fullScreen"
+      animationType={reducedMotion ? "none" : "fade"}
+      statusBarTranslucent
+      onRequestClose={handleBack}
     >
+    {/* `padding` only, no `automaticOffset` — this wraps the header too, and an
+        automatic offset would shove the whole page down instead of lifting the
+        composer. The KAV shrinks the flex column, so the FlatList gives up
+        height and the docked composer rides above the keyboard. */}
+    <KeyboardAvoidingView behavior="padding" style={styles.page}>
       {view === "list" ? (
         <KairoChatList
           chats={chats}
@@ -887,7 +845,7 @@ export const Kairo = forwardRef<KairoSheetRef, KairoProps>(function Kairo(
         />
       ) : (
       <>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <View style={styles.headerTopRow}>
           <Pressable
             onPress={() => setView("list")}
@@ -922,7 +880,7 @@ export const Kairo = forwardRef<KairoSheetRef, KairoProps>(function Kairo(
               </View>
             </Pressable>
             <Pressable
-              onPress={() => sheetRef.current?.close()}
+              onPress={onClose}
               hitSlop={12}
               style={({ pressed }) => [styles.headerCloseButton, pressed && { opacity: 0.6 }]}
               accessibilityLabel="Close Kairo"
@@ -956,73 +914,80 @@ export const Kairo = forwardRef<KairoSheetRef, KairoProps>(function Kairo(
         </Pressable>
       </View>
 
-      <BottomSheetScrollView
+      <FlatList
         ref={listRef}
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomInset + spacing.xl }]}
+        // `extraData` covers the thinking row's live status label, which changes
+        // without `data` changing identity.
+        data={chatRows}
+        extraData={statusLabel}
+        keyExtractor={(item) => item.id}
+        renderItem={renderChatRow}
+        contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
-      >
-        {chatRows.map((item) => (
-          <View key={item.id}>{renderChatRow({ item })}</View>
-        ))}
-
-        <View style={styles.contextCard}>
-          <View style={styles.contextRow}>
-            <View style={styles.contextMetric}>
-              <Text style={styles.contextKicker}>Workspace</Text>
-              <Text style={styles.contextValue}>{tasks.length}</Text>
-              <Text style={styles.contextMeta}>tasks in context</Text>
+        showsVerticalScrollIndicator={false}
+        onContentSizeChange={handleScrollToEnd}
+        ListFooterComponent={
+          <>
+            <View style={styles.contextCard}>
+              <View style={styles.contextRow}>
+                <View style={styles.contextMetric}>
+                  <Text style={styles.contextKicker}>Workspace</Text>
+                  <Text style={styles.contextValue}>{tasks.length}</Text>
+                  <Text style={styles.contextMeta}>tasks in context</Text>
+                </View>
+                <View style={styles.contextMetric}>
+                  <Text style={styles.contextKicker}>Inbox</Text>
+                  <Text style={styles.contextValue}>{inboxTasks.length}</Text>
+                  <Text style={styles.contextMeta}>unplaced tasks</Text>
+                </View>
+              </View>
+              <Text style={styles.contextStatusLabel}>
+                {isConfigPending ? "Loading" : isConfigured ? "Ready" : "Setup needed"}
+              </Text>
+              <Text style={styles.contextStatusText}>
+                {isConfigPending
+                  ? "Checking your saved provider configuration."
+                  : isConfigured
+                  ? setupSummary
+                  : "Add a provider, API key, base URL, and model in Settings → Kairo."}
+              </Text>
             </View>
-            <View style={styles.contextMetric}>
-              <Text style={styles.contextKicker}>Inbox</Text>
-              <Text style={styles.contextValue}>{inboxTasks.length}</Text>
-              <Text style={styles.contextMeta}>unplaced tasks</Text>
-            </View>
-          </View>
-          <Text style={styles.contextStatusLabel}>
-            {isConfigPending ? "Loading" : isConfigured ? "Ready" : "Setup needed"}
-          </Text>
-          <Text style={styles.contextStatusText}>
-            {isConfigPending
-              ? "Checking your saved provider configuration."
-              : isConfigured
-              ? setupSummary
-              : "Add a provider, API key, base URL, and model in Settings → Kairo."}
-          </Text>
-        </View>
 
-        {/* Starters render on first paint only (no user messages yet). */}
-        {msgs.length === 1 && !thinking && !deferredPromptPreview ? (
-          <View style={styles.starters}>
-            {starters.map((p) => (
+            {/* Starters render on first paint only (no user messages yet). */}
+            {msgs.length === 1 && !thinking && !deferredPromptPreview ? (
+              <View style={styles.starters}>
+                {starters.map((p) => (
+                  <Pressable
+                    key={p}
+                    onPress={() => void sendMessage(p)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Ask Kairo: ${p}`}
+                    style={({ pressed }) => [styles.starterPill, pressed && { opacity: 0.7 }]}
+                    hitSlop={12}
+                  >
+                    <Text style={styles.starterText}>{p}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+
+            {config && !isKairoConfigured(config) ? (
               <Pressable
-                key={p}
-                onPress={() => void sendMessage(p)}
+                onPress={onOpenSettings}
                 accessibilityRole="button"
-                accessibilityLabel={`Ask Kairo: ${p}`}
-                style={({ pressed }) => [styles.starterPill, pressed && { opacity: 0.7 }]}
+                accessibilityLabel="Set up Kairo"
+                style={({ pressed }) => [styles.configBanner, pressed && { opacity: 0.7 }]}
                 hitSlop={12}
               >
-                <Text style={styles.starterText}>{p}</Text>
+                <Text style={styles.configBannerText}>
+                  Open Settings → Kairo and finish provider setup →
+                </Text>
               </Pressable>
-            ))}
-          </View>
-        ) : null}
-
-        {config && !isKairoConfigured(config) ? (
-          <Pressable
-            onPress={onOpenSettings}
-            accessibilityRole="button"
-            accessibilityLabel="Set up Kairo"
-            style={({ pressed }) => [styles.configBanner, pressed && { opacity: 0.7 }]}
-            hitSlop={12}
-          >
-            <Text style={styles.configBannerText}>
-              Open Settings → Kairo and finish provider setup →
-            </Text>
-          </Pressable>
-        ) : null}
-      </BottomSheetScrollView>
+            ) : null}
+          </>
+        }
+      />
 
       {copyFeedback ? (
         <View
@@ -1034,9 +999,11 @@ export const Kairo = forwardRef<KairoSheetRef, KairoProps>(function Kairo(
         </View>
       ) : null}
 
-      <View style={[styles.inputDock, { marginBottom: keyboardLift }]}>
+      <View
+        style={[styles.inputDock, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}
+      >
         <View style={styles.inputBar}>
-          <BottomSheetTextInput
+          <TextInput
             style={styles.input}
             value={val}
             onChangeText={setVal}
@@ -1121,9 +1088,10 @@ export const Kairo = forwardRef<KairoSheetRef, KairoProps>(function Kairo(
       </View>
       </>
       )}
-    </BottomSheet>
+    </KeyboardAvoidingView>
+    </Modal>
   );
-});
+}
 
 function Bubble({
   message,
@@ -1294,20 +1262,13 @@ function Thinking({ label }: { label?: string | null }) {
 }
 
 const styles = createThemedStyles({
-  sheetBg: {
+  page: {
+    flex: 1,
     backgroundColor: colors.bg,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
-  },
-  indicator: {
-    backgroundColor: colors.border,
-    width: 36,
-    height: 4,
   },
   header: {
     flexDirection: "column",
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
     paddingBottom: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.borderSubtle,
@@ -1627,7 +1588,6 @@ const styles = createThemedStyles({
   inputDock: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
-    paddingBottom: spacing.lg,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.borderSubtle,
     backgroundColor: colors.bg,
