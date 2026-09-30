@@ -72,6 +72,28 @@ function isReleaseFoundation(path: string): boolean {
   );
 }
 
+// App-level assets are compiled into the native binary by the Expo config
+// plugins in `app.config.ts` — the app icon, the adaptive icon, the splash
+// images and the notification icon are all read at prebuild time and emitted
+// as Android drawables / iOS asset-catalog entries. None of them are imported
+// from JS, so an OTA update that ships only the JS bundle would silently fail
+// to deliver them. `assets/sounds/` is the exception: those `.wav` files are
+// imported in `src/lib/sound.ts` and ride along in the bundle, so they stay
+// OTA-safe.
+//
+// `favicon.png` also lives here but is only referenced from the `web` block of
+// the Expo config, so blocking it is a harmless false positive — it changes
+// far less often than the icons.
+const nativeCriticalAssetPrefix = "apps/mobile/assets/";
+const nativeCriticalAssetExceptions = ["apps/mobile/assets/sounds/"];
+
+function isNativeCriticalAsset(path: string): boolean {
+  return (
+    path.startsWith(nativeCriticalAssetPrefix) &&
+    !nativeCriticalAssetExceptions.some((prefix) => path.startsWith(prefix))
+  );
+}
+
 function isNativeCritical(path: string): boolean {
   return (
     nativeCriticalPaths.includes(
@@ -79,7 +101,8 @@ function isNativeCritical(path: string): boolean {
     ) ||
     path.startsWith("apps/mobile/plugins/") ||
     path.startsWith("apps/mobile/android/") ||
-    path.startsWith("apps/mobile/ios/")
+    path.startsWith("apps/mobile/ios/") ||
+    isNativeCriticalAsset(path)
   );
 }
 

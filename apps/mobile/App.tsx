@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
-import Animated, { Easing, FadeIn, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, { Easing, FadeIn, withTiming } from "react-native-reanimated";
 import { useAction, useConvex, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -63,7 +63,7 @@ import { TaskCard, type MobileTask } from "./src/components/TaskCard";
 import { TaskImageBudgetNotice } from "./src/components/TaskImageBudgetNotice";
 import { BottomTabBar, type TabKey } from "./src/components/BottomTabBar";
 import { GridBackground } from "./src/components/GridBackground";
-import { Kairo, type KairoSheetRef } from "./src/components/Kairo";
+import { Kairo } from "./src/components/Kairo";
 import { BootScreen } from "./src/components/BootScreen";
 import { BrandMark } from "./src/components/BrandMark";
 import { AddTaskSheet, type AddTaskSheetRef } from "./src/components/AddTaskSheet";
@@ -185,7 +185,6 @@ function MobileApp() {
   const tabEnterAnimation = reducedMotion ? undefined : tabEnter;
   const addTaskSheetRef = useRef<AddTaskSheetRef>(null);
   const editTaskSheetRef = useRef<EditTaskSheetRef>(null);
-  const kairoRef = useRef<KairoSheetRef>(null);
   const lastListStateLogMsRef = useRef<number>(0);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [diagnosticEvents, setDiagnosticEvents] = useState<DiagnosticEvent[]>([]);
@@ -235,15 +234,6 @@ function MobileApp() {
     void authStorageReady.then(() => setIsAuthStorageReady(true));
   }, []);
   visitedTabsRef.current.add(activeTab);
-
-  const chromeDim = useSharedValue(1);
-  useEffect(() => {
-    const target = isKairoActive ? 0.38 : 1;
-    chromeDim.value = reducedMotion
-      ? target
-      : withTiming(target, { duration: 280 });
-  }, [chromeDim, isKairoActive, reducedMotion]);
-  const chromeAnimStyle = useAnimatedStyle(() => ({ opacity: chromeDim.value }));
 
   const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
   const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || undefined;
@@ -1210,21 +1200,28 @@ function MobileApp() {
   const openKairo = useCallback(() => {
     if (!canUseWorkspaceActions) return;
     mobileLogger.info("kairo_opened");
-    kairoRef.current?.open();
-  }, [canUseWorkspaceActions]);
+    setIsKairoActive(true);
+  }, [canUseWorkspaceActions, setIsKairoActive]);
+
+  const closeKairo = useCallback(() => {
+    mobileLogger.info("kairo_closed");
+    setIsKairoActive(false);
+  }, [setIsKairoActive]);
 
   // Android hardware back: close the topmost overlay (sheet/modal) instead
   // of letting the OS exit the app. Without this, BACK from an open Capture
   // sheet would dismiss the sheet *and* pop the activity, sending the user
   // straight to the launcher.
+  //
+  // Kairo is absent on purpose. It's a full-screen Modal, which on Android is
+  // its own window: it consumes the back key and routes it to its own
+  // `onRequestClose`, which unwinds history → chat → close. This handler never
+  // sees the press while the page is up, so guessing at Kairo state here would
+  // only be a second, wrong source of truth.
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       if (selectedCompletedTask) {
         setSelectedCompletedTask(null);
-        return true;
-      }
-      if (isKairoActive) {
-        kairoRef.current?.close();
         return true;
       }
       if (isEditSheetOpen) {
@@ -1243,12 +1240,7 @@ function MobileApp() {
       return false;
     });
     return () => sub.remove();
-  }, [
-    isAddSheetOpen,
-    isEditSheetOpen,
-    isKairoActive,
-    selectedCompletedTask,
-  ]);
+  }, [isAddSheetOpen, isEditSheetOpen, selectedCompletedTask]);
 
   const renderProgressCompletedTaskItem = useCallback(
     ({ item }: { item: MobileTask }) => (
@@ -1367,10 +1359,7 @@ function MobileApp() {
       {/* Web-parity grid vignette behind everything. */}
       <GridBackground />
 
-      <Animated.View
-        style={[styles.chrome, chromeAnimStyle]}
-        pointerEvents={isKairoActive ? "none" : "auto"}
-      >
+      <View style={styles.chrome}>
       {/* Compact header: brand mark + view name on one line (the mark already
           says "Pravah"; no caps label needed), subtitle tucked beneath.
           Top inset comes from SafeAreaView — do not re-apply insets.top here. */}
@@ -1630,7 +1619,7 @@ function MobileApp() {
         />
       ) : null}
 
-      </Animated.View>
+      </View>
 
       {/* Bottom sheets */}
       <AddTaskSheet
@@ -1839,15 +1828,15 @@ function MobileApp() {
         onApplyChanges={applyManualTriageChanges}
       />
 
-      {/* Kairo lives at the root so its overlay sits above tabs and FAB. The
-          parent dims the rest of the chrome via isKairoActive when the sheet
-          is open, matching web's 0.38-opacity fade behind the active panel. */}
+      {/* Kairo is a full-screen page in its own modal window, so it needs no
+          dimming, no backdrop, and no pointer-events guard on the chrome
+          behind it. Visibility is driven straight off isKairoActive. */}
       <Kairo
-        ref={kairoRef}
         tasks={kairoTasks}
         inboxTasks={kairoInboxTasks}
         isAllTasksReady={isAllTasksReady}
-        onActiveChange={setIsKairoActive}
+        visible={isKairoActive}
+        onClose={closeKairo}
         onOpenSettings={openSettingsModal}
       />
 

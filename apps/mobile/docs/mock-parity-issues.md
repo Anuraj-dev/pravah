@@ -151,9 +151,10 @@ Parent artifact:
     **Type**: AFK
     **Blocked by**: 1
     **User stories covered**: 8, 10, 15, 16
-    **What this slice delivers**: Kairo entry from each tab, starter prompts,
-    provider setup, and unavailable/degraded states match the approved Kairo
-    board.
+    **What this slice delivers**: Kairo entry from each tab, the empty-chat
+    and unconfigured entry states, provider setup, and unavailable/degraded
+    states match the approved Kairo board. (Starter prompts were removed —
+    see #259; they are no longer part of the intended surface.)
 
 17. **Title**: Align Kairo proposal, apply, and history flows
     **Type**: AFK
