@@ -35,7 +35,8 @@ import type { Id } from "../../../../convex/_generated/dataModel";
 import { colors, fonts, motion, radii, spacing, typography } from "../theme/tokens";
 import { createThemedStyles } from "../theme/themeRuntime";
 import { classifyError, createActionId, mobileLogger } from "../lib/logger";
-import { PlusIcon } from "./UiIcons";
+import { ChevronLeftIcon, PlusIcon } from "./UiIcons";
+import KairoMarkIcon from "../assets/icons/settings-kairo.svg";
 import {
   getKairoConfig,
   isKairoConfigured,
@@ -846,7 +847,78 @@ export function Kairo({
       ) : (
       <>
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+        {/* App-wide page header: back on the left, page title centred, the one
+            page action on the right. Mirrors the Settings header — see
+            SettingsSheet.tsx's `headerShell` / `headerRow`. The title sits in an
+            absolutely-centred layer rather than a `flex: 1` slot, because the
+            right-hand action is wider than the back button and would otherwise
+            drag the title off-centre. */}
         <View style={styles.headerTopRow}>
+          <View style={styles.headerTitleLayer} pointerEvents="none">
+            <KairoMarkIcon width={22} height={22} color={colors.textSecondary} />
+            <Text style={styles.headerPageTitle} numberOfLines={1}>
+              Kairo
+            </Text>
+          </View>
+
+          <Pressable
+            onPress={handleBack}
+            hitSlop={12}
+            style={({ pressed }) => [styles.headerBackAction, pressed && { opacity: 0.6 }]}
+            accessibilityLabel="Close Kairo"
+            accessibilityRole="button"
+          >
+            <ChevronLeftIcon color={colors.textPrimary} size={20} />
+          </Pressable>
+
+          <View style={styles.headerTopRowFill} />
+
+          <Pressable
+            onPress={handleCreateChat}
+            hitSlop={12}
+            style={({ pressed }) => [
+              styles.headerNewButton,
+              thinking && styles.headerButtonDisabled,
+              pressed && { opacity: 0.72 },
+            ]}
+            accessibilityLabel="Start new chat"
+            accessibilityRole="button"
+            disabled={thinking}
+          >
+            <View style={styles.headerInlineAction}>
+              <PlusIcon color={colors.textInverse} size={14} />
+              <Text style={styles.headerNewText}>New</Text>
+            </View>
+          </Pressable>
+        </View>
+
+        {/* Chat identity + history switcher. Both open the history page, which is
+            the duplication flagged for a later pass — for now nothing is
+            dropped, it just no longer crowds the page header. */}
+        <View style={styles.headerMetaRow}>
+          <Pressable
+            onPress={() => setView("list")}
+            hitSlop={10}
+            style={({ pressed }) => [
+              styles.headerTitleRow,
+              thinking && styles.headerButtonDisabled,
+              pressed && { opacity: 0.78 },
+            ]}
+            accessibilityLabel="Open chat history"
+            accessibilityHint="Shows all chats and lets you switch conversations"
+            accessibilityRole="button"
+            disabled={thinking}
+          >
+            <View style={styles.headerTitleCopy}>
+              <Text style={styles.headerTitle} numberOfLines={1}>
+                {activeChat?.title && activeChat.title !== "New chat"
+                  ? activeChat.title
+                  : "New chat"}
+              </Text>
+              <Text style={styles.headerTitleHint}>{activeChatSummary}</Text>
+            </View>
+          </Pressable>
+
           <Pressable
             onPress={() => setView("list")}
             hitSlop={12}
@@ -861,57 +933,7 @@ export function Kairo({
           >
             <Text style={styles.headerHistoryText}>Chat history</Text>
           </Pressable>
-          <View style={styles.headerActions}>
-            <Pressable
-              onPress={handleCreateChat}
-              hitSlop={12}
-              style={({ pressed }) => [
-                styles.headerNewButton,
-                thinking && styles.headerButtonDisabled,
-                pressed && { opacity: 0.72 },
-              ]}
-              accessibilityLabel="Start new chat"
-              accessibilityRole="button"
-              disabled={thinking}
-            >
-              <View style={styles.headerInlineAction}>
-                <PlusIcon color={colors.accent} size={14} />
-                <Text style={styles.headerNewText}>New</Text>
-              </View>
-            </Pressable>
-            <Pressable
-              onPress={onClose}
-              hitSlop={12}
-              style={({ pressed }) => [styles.headerCloseButton, pressed && { opacity: 0.6 }]}
-              accessibilityLabel="Close Kairo"
-              accessibilityRole="button"
-            >
-              <Text style={styles.headerClose}>Close</Text>
-            </Pressable>
-          </View>
         </View>
-        <Pressable
-          onPress={() => setView("list")}
-          hitSlop={10}
-          style={({ pressed }) => [
-            styles.headerTitleRow,
-            thinking && styles.headerButtonDisabled,
-            pressed && { opacity: 0.78 },
-          ]}
-          accessibilityLabel="Open chat history"
-          accessibilityHint="Shows all chats and lets you switch conversations"
-          accessibilityRole="button"
-          disabled={thinking}
-        >
-          <View style={styles.headerTitleCopy}>
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              {activeChat?.title && activeChat.title !== "New chat"
-                ? activeChat.title
-                : "Kairo"}
-            </Text>
-            <Text style={styles.headerTitleHint}>{activeChatSummary}</Text>
-          </View>
-        </Pressable>
       </View>
 
       <FlatList
@@ -1276,13 +1298,47 @@ const styles = createThemedStyles({
   headerTopRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     gap: spacing.sm,
+    minHeight: 40,
   },
-  headerTitleRow: {
+  // Absolutely centred so an asymmetric right-hand action can't pull the page
+  // title off-centre. `headerTopRowFill` absorbs the slack instead.
+  headerTitleLayer: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+  },
+  headerPageTitle: {
+    ...typography.headline,
+    color: colors.textPrimary,
+  },
+  headerBackAction: {
+    width: 40,
+    height: 40,
+    alignItems: "flex-start",
+    justifyContent: "center",
+  },
+  headerTopRowFill: {
+    flex: 1,
+    height: 40,
+  },
+  headerMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
     marginTop: spacing.md,
+  },
+  headerTitleRow: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    minWidth: 0,
     padding: spacing.sm,
     borderRadius: radii.lg,
     borderWidth: StyleSheet.hairlineWidth,
@@ -1302,34 +1358,27 @@ const styles = createThemedStyles({
     ...typography.micro,
     marginTop: 1,
   },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
   headerInlineAction: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs,
   },
   headerHistoryButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 7,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.accent,
-    backgroundColor: colors.accentSoft,
+    borderColor: colors.border,
+    backgroundColor: colors.bgCardGlass,
   },
   headerHistoryText: {
-    color: colors.accent,
+    color: colors.textSecondary,
     ...typography.micro,
     fontFamily: fonts.sansSemibold,
   },
   headerNewButton: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 7,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
     borderRadius: radii.lg,
     backgroundColor: colors.accent,
   },
@@ -1337,14 +1386,6 @@ const styles = createThemedStyles({
     color: colors.textInverse,
     ...typography.micro,
     fontFamily: fonts.sansSemibold,
-  },
-  headerClose: {
-    color: colors.textSecondary,
-    ...typography.micro,
-  },
-  headerCloseButton: {
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 7,
   },
   headerButtonDisabled: {
     opacity: 0.45,

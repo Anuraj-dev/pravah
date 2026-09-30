@@ -49,6 +49,10 @@ vi.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
+vi.mock("../assets/icons/settings-kairo.svg", () => ({
+  default: () => React.createElement("svg", { "data-testid": "kairo-mark-icon" }),
+}));
+
 // ─── react-native mock ────────────────────────────────────────────────────────
 // Hardware-back registry. `pressHardwareBack` mirrors RN's real dispatch
 // order — most recently registered handler first — so tests observe which
@@ -395,7 +399,7 @@ describe("Kairo", () => {
     expect(screen.getByTestId("kairo-modal")).toBeTruthy();
   });
 
-  it("asks the parent to close when the Close control is pressed", async () => {
+  it("asks the parent to close when the back control is pressed", async () => {
     useConfiguredKairo();
     const onClose = vi.fn();
 
