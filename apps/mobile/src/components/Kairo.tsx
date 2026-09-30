@@ -40,12 +40,10 @@ import KairoMarkIcon from "../assets/icons/settings-kairo.svg";
 import {
   getKairoConfig,
   isKairoConfigured,
-  getKairoProviderLabel,
   type KairoConfig,
 } from "../lib/kairoConfig";
 import {
   KAIRO_AGENT_SYSTEM_PROMPT,
-  buildKairoStarters,
   contextWindowForModel,
   estimateTokens,
   type AgentTurn,
@@ -59,7 +57,6 @@ import {
   buildToolDefs,
   createHandleRegistry,
 } from "../lib/kairoTools";
-import { formatRelative } from "../lib/formatRelative";
 import {
   runKairoAgent,
   type ApplyAgentActions,
@@ -196,7 +193,6 @@ export function Kairo({
   const [val, setVal] = useState("");
   const [thinking, setThinking] = useState(false);
   const [config, setConfig] = useState<KairoConfig | null>(null);
-  const [configLoaded, setConfigLoaded] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   // Live status line shown in the thinking skeleton, driven by the agent's
   // onProgress callback ("Checking your inbox…", "Updating your tasks…").
@@ -210,9 +206,9 @@ export function Kairo({
   const [deferredPromptPreview, setDeferredPromptPreview] = useState<string | null>(null);
   // "chat" shows the active conversation, "list" shows the chat picker.
   const [view, setView] = useState<"chat" | "list">("chat");
-  // Local-date snapshot used to derive starters. Refreshed each time the
-  // page opens so an app left mounted across midnight still picks up the
-  // new day's "What's on today?" / overdue counts on next visit.
+  // Local-date snapshot used to build the model's thin context. Refreshed each
+  // time the page opens so an app left mounted across midnight still picks up
+  // the new day's schedule on next visit.
   const [today, setToday] = useState(() => getLocalDateString());
   const listRef = useRef<FlatList<KairoChatRow>>(null);
   // Undo closures keyed by KairoMessageAction.id. Held in a ref so the closure
@@ -251,7 +247,8 @@ export function Kairo({
 
   // Reload Kairo config every time the page opens — the user might have
   // edited their API key in the Settings sheet between visits. Also refresh
-  // `today` so the starters memo recomputes if the app sat idle past midnight.
+  // `today` so the thin context memo recomputes if the app sat idle past
+  // midnight.
   useEffect(() => {
     if (!visible) return;
     const refreshToday = () =>
@@ -261,20 +258,16 @@ export function Kairo({
       });
     refreshToday();
     // Tick every minute so a midnight rollover while the page is open still
-    // recomputes starters without needing a close/re-open.
+    // recomputes context without needing a close/re-open.
     const timer = setInterval(refreshToday, 60_000);
     let cancelled = false;
-    setConfigLoaded(false);
+    setConfig(null);
     void getKairoConfig()
       .then((c) => {
-        if (!cancelled) {
-          setConfig(c);
-          setConfigLoaded(true);
-        }
+        if (!cancelled) setConfig(c);
       })
       .catch((error) => {
         mobileLogger.warn("kairo_config_load_failed", { errorType: classifyError(error) });
-        if (!cancelled) setConfigLoaded(true);
       });
     return () => {
       cancelled = true;
@@ -303,19 +296,6 @@ export function Kairo({
     if (thinking) rows.push({ kind: "thinking", id: "thinking" });
     return rows;
   }, [deferredPromptPreview, msgs, thinking]);
-
-  const starters = useMemo(
-    () => buildKairoStarters(tasks, inboxTasks, today),
-    [tasks, inboxTasks, today]
-  );
-  const isConfigPending = visible && !configLoaded;
-  const isConfigured = configLoaded && config ? isKairoConfigured(config) : false;
-  const setupSummary = config
-    ? `${getKairoProviderLabel(config.providerFormat)} · ${config.model}`
-    : "Loading provider";
-  const activeChatSummary = activeChat
-    ? `${Math.max(activeChat.messages.length - 1, 0)} turns · ${formatRelative(activeChat.updatedAt)}`
-    : "No chat loaded";
 
   // Live context meter. The base — system prompt + thin workspace context +
   // visible history — only changes when the workspace or conversation does, so
@@ -520,7 +500,7 @@ export function Kairo({
         providerFormat: nextConfig.providerFormat,
         taskCount: tasks.length,
         inboxCount: inboxTasks.length,
-        historyTurns: Math.max(msgs.length - 1, 0),
+        historyTurns: msgs.filter((m) => m.from === "me").length,
       });
 
       // Text-only history from the first user message (skip the greeting). The
@@ -847,12 +827,11 @@ export function Kairo({
       ) : (
       <>
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-        {/* App-wide page header: back on the left, page title centred, the one
-            page action on the right. Mirrors the Settings header — see
-            SettingsSheet.tsx's `headerShell` / `headerRow`. The title sits in an
-            absolutely-centred layer rather than a `flex: 1` slot, because the
-            right-hand action is wider than the back button and would otherwise
-            drag the title off-centre. */}
+        {/* App-wide page header: back on the left, page title centred. Mirrors
+            the Settings header — see SettingsSheet.tsx's `headerShell` /
+            `headerRow`. The title sits in an absolutely-centred layer so it
+            stays optically centred regardless of what flanks it. The page's one
+            action (New) lives in the row below, not here. */}
         <View style={styles.headerTopRow}>
           <View style={styles.headerTitleLayer} pointerEvents="none">
             <KairoMarkIcon width={22} height={22} color={colors.textSecondary} />
@@ -870,8 +849,25 @@ export function Kairo({
           >
             <ChevronLeftIcon color={colors.textPrimary} size={20} />
           </Pressable>
+        </View>
 
-          <View style={styles.headerTopRowFill} />
+        {/* Chat controls: history on the left, the page's primary action on the
+            right. */}
+        <View style={styles.headerMetaRow}>
+          <Pressable
+            onPress={() => setView("list")}
+            hitSlop={12}
+            style={({ pressed }) => [
+              styles.headerHistoryButton,
+              thinking && styles.headerButtonDisabled,
+              pressed && { opacity: 0.72 },
+            ]}
+            accessibilityLabel="Show chat list"
+            accessibilityRole="button"
+            disabled={thinking}
+          >
+            <Text style={styles.headerHistoryText}>Chat history</Text>
+          </Pressable>
 
           <Pressable
             onPress={handleCreateChat}
@@ -891,49 +887,6 @@ export function Kairo({
             </View>
           </Pressable>
         </View>
-
-        {/* Chat identity + history switcher. Both open the history page, which is
-            the duplication flagged for a later pass — for now nothing is
-            dropped, it just no longer crowds the page header. */}
-        <View style={styles.headerMetaRow}>
-          <Pressable
-            onPress={() => setView("list")}
-            hitSlop={10}
-            style={({ pressed }) => [
-              styles.headerTitleRow,
-              thinking && styles.headerButtonDisabled,
-              pressed && { opacity: 0.78 },
-            ]}
-            accessibilityLabel="Open chat history"
-            accessibilityHint="Shows all chats and lets you switch conversations"
-            accessibilityRole="button"
-            disabled={thinking}
-          >
-            <View style={styles.headerTitleCopy}>
-              <Text style={styles.headerTitle} numberOfLines={1}>
-                {activeChat?.title && activeChat.title !== "New chat"
-                  ? activeChat.title
-                  : "New chat"}
-              </Text>
-              <Text style={styles.headerTitleHint}>{activeChatSummary}</Text>
-            </View>
-          </Pressable>
-
-          <Pressable
-            onPress={() => setView("list")}
-            hitSlop={12}
-            style={({ pressed }) => [
-              styles.headerHistoryButton,
-              thinking && styles.headerButtonDisabled,
-              pressed && { opacity: 0.72 },
-            ]}
-            accessibilityLabel="Show chat list"
-            accessibilityRole="button"
-            disabled={thinking}
-          >
-            <Text style={styles.headerHistoryText}>Chat history</Text>
-          </Pressable>
-        </View>
       </View>
 
       <FlatList
@@ -949,66 +902,6 @@ export function Kairo({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         onContentSizeChange={handleScrollToEnd}
-        ListFooterComponent={
-          <>
-            <View style={styles.contextCard}>
-              <View style={styles.contextRow}>
-                <View style={styles.contextMetric}>
-                  <Text style={styles.contextKicker}>Workspace</Text>
-                  <Text style={styles.contextValue}>{tasks.length}</Text>
-                  <Text style={styles.contextMeta}>tasks in context</Text>
-                </View>
-                <View style={styles.contextMetric}>
-                  <Text style={styles.contextKicker}>Inbox</Text>
-                  <Text style={styles.contextValue}>{inboxTasks.length}</Text>
-                  <Text style={styles.contextMeta}>unplaced tasks</Text>
-                </View>
-              </View>
-              <Text style={styles.contextStatusLabel}>
-                {isConfigPending ? "Loading" : isConfigured ? "Ready" : "Setup needed"}
-              </Text>
-              <Text style={styles.contextStatusText}>
-                {isConfigPending
-                  ? "Checking your saved provider configuration."
-                  : isConfigured
-                  ? setupSummary
-                  : "Add a provider, API key, base URL, and model in Settings → Kairo."}
-              </Text>
-            </View>
-
-            {/* Starters render on first paint only (no user messages yet). */}
-            {msgs.length === 1 && !thinking && !deferredPromptPreview ? (
-              <View style={styles.starters}>
-                {starters.map((p) => (
-                  <Pressable
-                    key={p}
-                    onPress={() => void sendMessage(p)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Ask Kairo: ${p}`}
-                    style={({ pressed }) => [styles.starterPill, pressed && { opacity: 0.7 }]}
-                    hitSlop={12}
-                  >
-                    <Text style={styles.starterText}>{p}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            ) : null}
-
-            {config && !isKairoConfigured(config) ? (
-              <Pressable
-                onPress={onOpenSettings}
-                accessibilityRole="button"
-                accessibilityLabel="Set up Kairo"
-                style={({ pressed }) => [styles.configBanner, pressed && { opacity: 0.7 }]}
-                hitSlop={12}
-              >
-                <Text style={styles.configBannerText}>
-                  Open Settings → Kairo and finish provider setup →
-                </Text>
-              </Pressable>
-            ) : null}
-          </>
-        }
       />
 
       {copyFeedback ? (
@@ -1024,6 +917,23 @@ export function Kairo({
       <View
         style={[styles.inputDock, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}
       >
+        {/* Provider setup lives with the composer, not in the transcript — it's
+            the one prerequisite for sending anything, so it reads as part of
+            the send path. */}
+        {config && !isKairoConfigured(config) ? (
+          <Pressable
+            onPress={onOpenSettings}
+            accessibilityRole="button"
+            accessibilityLabel="Set up Kairo"
+            style={({ pressed }) => [styles.configBanner, pressed && { opacity: 0.7 }]}
+            hitSlop={12}
+          >
+            <Text style={styles.configBannerText}>
+              Open Settings → Kairo and finish provider setup →
+            </Text>
+          </Pressable>
+        ) : null}
+
         <View style={styles.inputBar}>
           <TextInput
             style={styles.input}
@@ -1302,7 +1212,7 @@ const styles = createThemedStyles({
     minHeight: 40,
   },
   // Absolutely centred so an asymmetric right-hand action can't pull the page
-  // title off-centre. `headerTopRowFill` absorbs the slack instead.
+  // title off-centre.
   headerTitleLayer: {
     position: "absolute",
     top: 0,
@@ -1324,39 +1234,12 @@ const styles = createThemedStyles({
     alignItems: "flex-start",
     justifyContent: "center",
   },
-  headerTopRowFill: {
-    flex: 1,
-    height: 40,
-  },
   headerMetaRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     gap: spacing.sm,
     marginTop: spacing.md,
-  },
-  headerTitleRow: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    minWidth: 0,
-    padding: spacing.sm,
-    borderRadius: radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    backgroundColor: colors.bgCard,
-  },
-  headerTitleCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  headerTitle: {
-    color: colors.textPrimary,
-    ...typography.title,
-  },
-  headerTitleHint: {
-    color: colors.textMuted,
-    ...typography.micro,
-    marginTop: 1,
   },
   headerInlineAction: {
     flexDirection: "row",
@@ -1542,65 +1425,8 @@ const styles = createThemedStyles({
     width: "60%",
     backgroundColor: colors.accentSoft,
   },
-  starters: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  contextCard: {
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radii.lg,
-    backgroundColor: colors.bgCard,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderSubtle,
-  },
-  contextRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  contextMetric: {
-    flex: 1,
-    gap: 2,
-  },
-  contextKicker: {
-    color: colors.textMuted,
-    ...typography.micro,
-  },
-  contextValue: {
-    color: colors.textPrimary,
-    ...typography.title,
-  },
-  contextMeta: {
-    color: colors.textMuted,
-    ...typography.bodyMd,
-  },
-  contextStatusLabel: {
-    color: colors.textMuted,
-    ...typography.micro,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  contextStatusText: {
-    color: colors.textSecondary,
-    ...typography.bodyMd,
-  },
-  starterPill: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.full,
-    backgroundColor: colors.bgCardGlass,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  starterText: {
-    color: colors.textSecondary,
-    fontFamily: fonts.sans,
-    fontSize: 13,
-  },
   configBanner: {
-    marginTop: spacing.md,
+    marginBottom: spacing.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderWidth: StyleSheet.hairlineWidth,

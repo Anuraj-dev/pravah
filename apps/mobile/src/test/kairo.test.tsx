@@ -373,6 +373,19 @@ describe("Kairo", () => {
       view.setVisible(true);
     });
 
+  // A fresh chat opens empty, so there's no greeting text to await. The real
+  // readiness gate for every send path is the chat hook hydrating `activeChat`
+  // — the Send button stays disabled until it does. So type first, then wait
+  // for Send to enable; that is the same precondition the user hits.
+  const compose = async (text: string) => {
+    fireEvent.change(await screen.findByTestId("kairo-input"), {
+      target: { value: text },
+    });
+    const send = screen.getByRole("button", { name: /send message/i });
+    await waitFor(() => expect(send).toBeEnabled());
+    return send;
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     asyncStorageBacking.clear();
@@ -384,18 +397,18 @@ describe("Kairo", () => {
     vi.clearAllMocks();
   });
 
-  it("renders nothing while closed, then the greeting once opened", async () => {
+  it("renders nothing while closed, then the page once opened", async () => {
     useConfiguredKairo();
 
     const view = renderKairo();
 
     expect(screen.queryByTestId("kairo-modal")).toBeNull();
-    expect(screen.queryByText(/Hi, I'm Kairo/i)).toBeNull();
+    expect(screen.queryByTestId("kairo-input")).toBeNull();
 
     openKairo(view);
 
-    // Hook hydrates asynchronously; wait for the seeded greeting to land.
-    await screen.findByText(/Hi, I'm Kairo/i);
+    // Hook hydrates asynchronously; wait for the composer to land.
+    expect(await screen.findByTestId("kairo-input")).toBeTruthy();
     expect(screen.getByTestId("kairo-modal")).toBeTruthy();
   });
 
@@ -404,7 +417,7 @@ describe("Kairo", () => {
     const onClose = vi.fn();
 
     renderKairo({ visible: true, onClose });
-    await screen.findByText(/Hi, I'm Kairo/i);
+    await screen.findByTestId("kairo-input");
 
     fireEvent.click(screen.getByRole("button", { name: /close kairo/i }));
 
@@ -416,7 +429,7 @@ describe("Kairo", () => {
     const onClose = vi.fn();
 
     renderKairo({ visible: true, onClose });
-    await screen.findByText(/Hi, I'm Kairo/i);
+    await screen.findByTestId("kairo-input");
 
     // Open the history page.
     fireEvent.click(screen.getByRole("button", { name: /show chat list/i }));
@@ -450,21 +463,13 @@ describe("Kairo", () => {
     });
 
     openKairo(view);
-    await screen.findByText(/Hi, I'm Kairo/i);
+    const sendBtn = await compose("Plan my week");
 
-    const input = screen.getByTestId("kairo-input") as HTMLInputElement;
-    const sendBtn = screen.getByRole("button", { name: /send message/i });
-
-    // Type a message
-    fireEvent.change(input, { target: { value: "Plan my week" } });
-    
-    // Send the message
     await act(async () => {
       fireEvent.click(sendBtn);
     });
 
-    // Should show the deferred message (preview bubble; the header title
-    // does not auto-derive while the prompt is still pending).
+    // Should show the deferred message as a preview bubble.
     expect(screen.getByText("Plan my week")).toBeTruthy();
     expect(screen.getByText(/Loading your workspace/i)).toBeTruthy();
 
@@ -487,13 +492,8 @@ describe("Kairo", () => {
     });
 
     openKairo(view);
-    await screen.findByText(/Hi, I'm Kairo/i);
+    const sendBtn = await compose("Plan my week");
 
-    const input = screen.getByTestId("kairo-input") as HTMLInputElement;
-    const sendBtn = screen.getByRole("button", { name: /send message/i });
-
-    // Send message while not ready
-    fireEvent.change(input, { target: { value: "Plan my week" } });
     await act(async () => {
       fireEvent.click(sendBtn);
     });
@@ -511,7 +511,7 @@ describe("Kairo", () => {
     await waitFor(() => expect(global.fetch).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByText("Here's your plan")).toBeTruthy());
 
-    // After replay: user bubble + auto-derived header title both show the text.
+    // After replay: the user bubble shows the text and the loading bubble is gone.
     expect(screen.getAllByText("Plan my week").length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText(/Loading your workspace/i)).toBeNull();
   });
@@ -527,18 +527,13 @@ describe("Kairo", () => {
     const view = renderKairo();
 
     openKairo(view);
-    await screen.findByText(/Hi, I'm Kairo/i);
-
-    const input = screen.getByTestId("kairo-input") as HTMLInputElement;
-    const sendBtn = screen.getByRole("button", { name: /send message/i });
-
-    fireEvent.change(input, { target: { value: "What's overdue?" } });
+    const sendBtn = await compose("What's overdue?");
 
     await act(async () => {
       fireEvent.click(sendBtn);
     });
 
-    // Should show user message (bubble + auto-derived header title).
+    // Should show the user message bubble.
     expect(screen.getAllByText("What's overdue?").length).toBeGreaterThanOrEqual(1);
 
     // Should call fetch
@@ -554,12 +549,7 @@ describe("Kairo", () => {
     const view = renderKairo();
 
     openKairo(view);
-    await screen.findByText(/Hi, I'm Kairo/i);
-
-    const input = screen.getByTestId("kairo-input") as HTMLInputElement;
-    const sendBtn = screen.getByRole("button", { name: /send message/i });
-
-    fireEvent.change(input, { target: { value: "Help me" } });
+    const sendBtn = await compose("Help me");
     
     await act(async () => {
       fireEvent.click(sendBtn);
@@ -607,12 +597,7 @@ describe("Kairo", () => {
     const view = renderKairo();
 
     openKairo(view);
-    await screen.findByText(/Hi, I'm Kairo/i);
-
-    const input = screen.getByTestId("kairo-input") as HTMLInputElement;
-    const sendBtn = screen.getByRole("button", { name: /send message/i });
-
-    fireEvent.change(input, { target: { value: "Add some tasks" } });
+    const sendBtn = await compose("Add some tasks");
     
     await act(async () => {
       fireEvent.click(sendBtn);
@@ -660,10 +645,9 @@ describe("Kairo", () => {
     const view = renderKairo();
 
     openKairo(view);
-    await screen.findByText(/Hi, I'm Kairo/i);
-    fireEvent.change(screen.getByTestId("kairo-input"), { target: { value: "Add a task" } });
+    const sendBtn = await compose("Add a task");
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /send message/i }));
+      fireEvent.click(sendBtn);
     });
 
     await waitFor(() => expect(screen.getByText("I left it unchanged.")).toBeTruthy());
@@ -683,12 +667,7 @@ describe("Kairo", () => {
     const view = renderKairo();
 
     openKairo(view);
-    await screen.findByText(/Hi, I'm Kairo/i);
-
-    const input = screen.getByTestId("kairo-input") as HTMLInputElement;
-    const sendBtn = screen.getByRole("button", { name: /send message/i });
-
-    fireEvent.change(input, { target: { value: "Help" } });
+    const sendBtn = await compose("Help");
 
     await act(async () => {
       fireEvent.click(sendBtn);
@@ -710,12 +689,7 @@ describe("Kairo", () => {
     const view = renderKairo();
 
     openKairo(view);
-    await screen.findByText(/Hi, I'm Kairo/i);
-
-    const input = screen.getByTestId("kairo-input") as HTMLInputElement;
-    const sendBtn = screen.getByRole("button", { name: /send message/i });
-
-    fireEvent.change(input, { target: { value: "Help" } });
+    const sendBtn = await compose("Help");
     
     await act(async () => {
       fireEvent.click(sendBtn);
