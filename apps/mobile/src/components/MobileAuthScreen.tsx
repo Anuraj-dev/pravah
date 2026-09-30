@@ -1,14 +1,16 @@
 import { StatusBar } from "expo-status-bar";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import GoogleIconAsset from "../assets/icons/provider-google.svg";
 import {
   colors,
-  shadow,
+  radii,
   spacing,
   typography,
 } from "../theme/tokens";
 import { getThemeRuntimeSnapshot } from "../theme/themeRuntime";
 import { createThemedStyles } from "../theme/themeRuntime";
+import { SoftWaveField } from "./SoftWaveField";
 import { BrandMark } from "./BrandMark";
 
 type MobileAuthScreenProps = {
@@ -31,6 +33,7 @@ export function MobileAuthScreen({
       <StatusBar
         style={getThemeRuntimeSnapshot().appearance === "dark" ? "light" : "dark"}
       />
+      <SoftWaveField />
 
       <View style={[styles.brandZone, { paddingTop: insets.top + spacing.section * 2 }]}>
         <BrandMark size={64} />
@@ -52,7 +55,6 @@ export function MobileAuthScreen({
         >
           <Text style={styles.wordmark}>Pravah</Text>
         </Pressable>
-
       </View>
 
       <View style={[styles.buttonZone, { paddingBottom: insets.bottom + spacing.section }]}>
@@ -61,18 +63,29 @@ export function MobileAuthScreen({
           disabled={!canGoogleSignIn || isSigningIn}
           accessibilityRole="button"
           accessibilityLabel={isSigningIn ? "Signing in with Google" : "Sign in with Google"}
+          accessibilityState={{ disabled: !canGoogleSignIn || isSigningIn, busy: isSigningIn }}
           style={({ pressed }) => [
             styles.googleButton,
             (!canGoogleSignIn || isSigningIn) && styles.disabledButton,
             pressed && styles.pressed,
           ]}
         >
-          <Text style={styles.googleButtonText}>
+          <GoogleIconAsset
+            width={18}
+            height={18}
+            style={(!canGoogleSignIn || isSigningIn) && styles.disabledButtonIcon}
+          />
+          <Text
+            style={[
+              styles.googleButtonText,
+              (!canGoogleSignIn || isSigningIn) && styles.disabledButtonText,
+            ]}
+          >
             {isSigningIn ? "Signing in..." : "Continue with Google"}
           </Text>
         </Pressable>
         {!canGoogleSignIn ? (
-          <Text style={styles.hint}>Set `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` in mobile env.</Text>
+          <Text style={styles.hint}>Set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID in mobile env.</Text>
         ) : null}
       </View>
     </View>
@@ -87,6 +100,7 @@ const styles = createThemedStyles({
   brandZone: {
     flex: 1,
     alignItems: "center",
+    justifyContent: "center",
     gap: spacing.lg,
     paddingHorizontal: spacing.xl,
   },
@@ -97,28 +111,32 @@ const styles = createThemedStyles({
     lineHeight: 44,
     letterSpacing: -1.2,
   },
-  tagline: {
-    color: colors.textSecondary,
-    ...typography.bodyLg,
-    textAlign: "center",
-  },
   buttonZone: {
     paddingHorizontal: spacing.xl,
     gap: spacing.md,
   },
   googleButton: {
-    borderRadius: 9999,
-    backgroundColor: colors.bgFloating,
-    paddingVertical: spacing.md + 2,
+    minHeight: 48,
+    flexDirection: "row",
     alignItems: "center",
-    ...shadow.glow,
+    justifyContent: "center",
+    gap: spacing.sm,
+    borderRadius: radii.md,
+    borderCurve: "continuous",
+    backgroundColor: colors.accent,
   },
   googleButtonText: {
-    color: colors.textPrimary,
+    color: colors.textInverse,
     ...typography.title,
   },
   disabledButton: {
-    opacity: 0.45,
+    backgroundColor: colors.border,
+  },
+  disabledButtonText: {
+    color: colors.textMuted,
+  },
+  disabledButtonIcon: {
+    opacity: 0.5,
   },
   pressed: {
     opacity: 0.72,
