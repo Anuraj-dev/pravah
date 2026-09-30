@@ -2,8 +2,9 @@
 /**
  * Kairo component tests
  *
- * Strategy: mock all external dependencies (bottom-sheet, convex, fetch, kairoConfig)
- * and test the message flow, deferred prompts, API calls, and task extraction.
+ * Strategy: mock all external dependencies (react-native, convex, fetch,
+ * kairoConfig) and test the message flow, deferred prompts, API calls, and
+ * task extraction.
  */
 
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -52,6 +53,10 @@ vi.mock("react-native-safe-area-context", () => ({
 vi.mock("../assets/icons/settings-kairo.svg", () => ({
   default: () => React.createElement("svg", { "data-testid": "kairo-mark-icon" }),
 }));
+
+// The page gates its transition on this, which would otherwise drag in
+// useUserPreferences and the whole preference store for no benefit here.
+vi.mock("../hooks/useReducedMotion", () => ({ useReducedMotion: () => false }));
 
 // ─── react-native mock ────────────────────────────────────────────────────────
 // Hardware-back registry. `pressHardwareBack` mirrors RN's real dispatch
@@ -377,12 +382,15 @@ describe("Kairo", () => {
   // readiness gate for every send path is the chat hook hydrating `activeChat`
   // — the Send button stays disabled until it does. So type first, then wait
   // for Send to enable; that is the same precondition the user hits.
+  //
+  // Asserted via the raw `disabled` property rather than `toBeEnabled()`:
+  // jest-dom is not registered in this suite, so its matchers don't exist.
   const compose = async (text: string) => {
     fireEvent.change(await screen.findByTestId("kairo-input"), {
       target: { value: text },
     });
-    const send = screen.getByRole("button", { name: /send message/i });
-    await waitFor(() => expect(send).toBeEnabled());
+    const send = screen.getByRole("button", { name: /send message/i }) as HTMLButtonElement;
+    await waitFor(() => expect(send.disabled).toBe(false));
     return send;
   };
 
