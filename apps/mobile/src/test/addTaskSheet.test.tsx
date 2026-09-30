@@ -168,9 +168,13 @@ vi.mock("expo-linear-gradient", () => ({
 }));
 
 // ─── expo-haptics mock ────────────────────────────────────────────────────────
+// A local vi.mock replaces the whole module, shadowing the wider mock in
+// setup.ts — so anything the component calls has to be declared here too.
+// haptic.selection() calls selectionAsync, which the workbench controls use.
 vi.mock("expo-haptics", () => ({
   impactAsync: vi.fn(async () => undefined),
   notificationAsync: vi.fn(async () => undefined),
+  selectionAsync: vi.fn(async () => undefined),
   ImpactFeedbackStyle: { Light: "light", Medium: "medium" },
   NotificationFeedbackType: { Success: "success", Error: "error" },
 }));
@@ -584,8 +588,11 @@ describe("AddTaskSheet", () => {
     );
 
     act(() => ref.current?.open());
+    // The capture workbench is two-step: picking a date returns to the planning
+    // summary, so the time row is reached by reopening the When editor.
     fireEvent.click(screen.getByRole("button", { name: "When, Inbox" }));
     fireEvent.click(screen.getByRole("button", { name: "Today" }));
+    fireEvent.click(screen.getByRole("button", { name: "When, Today" }));
     fireEvent.click(screen.getByRole("button", { name: "Add time" }));
     fireEvent.click(screen.getByText("Choose 4:30 PM"));
     expect(screen.getByRole("button", { name: "When, Today · 4:30 PM" })).toBeTruthy();
