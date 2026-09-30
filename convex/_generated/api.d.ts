@@ -11,6 +11,7 @@
 import type * as auth from "../auth.js";
 import type * as authHelpers from "../authHelpers.js";
 import type * as automation from "../automation.js";
+import type * as automationCredentialUsage from "../automationCredentialUsage.js";
 import type * as automationHttpAuth from "../automationHttpAuth.js";
 import type * as automationIdempotency from "../automationIdempotency.js";
 import type * as automationOperations from "../automationOperations.js";
@@ -25,6 +26,7 @@ import type * as index from "../index.js";
 import type * as mobileReleases from "../mobileReleases.js";
 import type * as origins from "../origins.js";
 import type * as overdueReflow from "../overdueReflow.js";
+import type * as ownerConvexToken from "../ownerConvexToken.js";
 import type * as sync from "../sync.js";
 import type * as syncActions from "../syncActions.js";
 import type * as taskImageActions from "../taskImageActions.js";
