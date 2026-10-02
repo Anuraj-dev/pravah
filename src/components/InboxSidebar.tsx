@@ -9,6 +9,7 @@ import { getLocalDateString } from "../lib/utils";
 import { tx } from "../lib/motion";
 import { goalWash } from "../lib/goalWash";
 import { PriorityPill } from "./ui/priorityPill";
+import { navInboxIcon } from "./ui/traced-icons";
 import {
   CalendarIcon,
   CheckIcon,
@@ -18,6 +19,8 @@ import {
   SearchIcon,
   TrashIcon,
 } from "./ui/icons";
+
+const NavInboxGlyph = navInboxIcon;
 
 interface InboxSidebarProps {
   tasks: Task[];
@@ -50,7 +53,7 @@ function formatTaskAge(createdAt: number): string {
   return `${mo}mo`;
 }
 
-function GoalPill({ goalName }: { goalName: string }) {
+function GoalDiamond({ goalName }: { goalName: string }) {
   const wash = goalWash(goalName);
   return (
     <span
@@ -58,22 +61,16 @@ function GoalPill({ goalName }: { goalName: string }) {
       style={{
         display: "inline-flex",
         alignItems: "center",
-        maxWidth: "100%",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-        height: 17,
-        padding: "0 6px",
-        borderRadius: 5,
-        background: wash.background,
-        color: wash.color,
-        fontSize: 10,
-        fontWeight: 600,
-        lineHeight: 1,
+        gap: 3,
+        minWidth: 0,
+        fontSize: 10.5,
+        lineHeight: 1.3,
+        color: "var(--color-text-muted)",
         flexShrink: 1,
       }}
     >
-      {goalName}
+      <span aria-hidden style={{ color: wash.color, fontSize: 9, flexShrink: 0 }}>◈</span>
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{goalName}</span>
     </span>
   );
 }
@@ -124,13 +121,20 @@ function InboxTaskComponent({
         {...listeners}
         style={{
           display: "flex",
-          flexDirection: "column",
-          gap: 6,
-          padding: "10px 11px",
-          background: hover ? "var(--color-bg-floating)" : "var(--color-bg-elevated)",
-          border: `1px solid ${hover ? "var(--color-border-strong)" : "var(--color-border-default)"}`,
+          alignItems: "center",
+          gap: 9,
+          padding: "8px 10px",
+          background:
+            selected || hover ? "var(--color-bg-floating)" : "var(--color-bg-elevated)",
+          border: `1px solid ${
+            selected
+              ? "rgba(var(--color-accent-primary-rgb), 0.35)"
+              : hover
+                ? "var(--color-border-strong)"
+                : "var(--color-border-default)"
+          }`,
           borderRadius: 10,
-          boxShadow: hover ? "0 3px 10px rgba(44,33,24,0.1)" : "0 1px 2px rgba(44,33,24,0.05)",
+          boxShadow: hover ? "0 3px 10px rgba(44,33,24,0.1)" : "none",
           fontSize: 12.5,
           fontWeight: 500,
           color: "var(--color-text-primary)",
@@ -177,7 +181,8 @@ function InboxTaskComponent({
         }
       }}
     >
-      {selectMode && (
+      {/* Leading tile: inbox mark normally, selection checkbox in select mode */}
+      {selectMode ? (
         <button
           type="button"
           aria-label={selected ? `Deselect ${task.title}` : `Select ${task.title}`}
@@ -188,198 +193,227 @@ function InboxTaskComponent({
             onToggleSelect();
           }}
           style={{
-            position: "absolute",
-            top: 11,
-            left: 11,
-            width: 16,
-            height: 16,
-            borderRadius: 5,
-            border: `1px solid ${selected ? "var(--color-accent-primary)" : "var(--color-border-strong)"}`,
-            background: selected ? "var(--color-accent-primary)" : "transparent",
-            color: "var(--color-bg-elevated)",
+            width: 30,
+            height: 30,
+            flexShrink: 0,
+            borderRadius: 9,
+            border: selected ? "none" : "1.5px solid var(--color-border-strong)",
+            background: selected ? "var(--color-accent-primary)" : "var(--color-bg-surface)",
+            color: "var(--color-text-inverse)",
             display: "grid",
             placeItems: "center",
             cursor: "pointer",
           }}
         >
-          {selected && <CheckIcon size={11} strokeWidth={3} />}
+          {selected && <CheckIcon size={14} strokeWidth={2.6} />}
         </button>
+      ) : (
+        <span
+          aria-hidden
+          style={{
+            width: 30,
+            height: 30,
+            flexShrink: 0,
+            borderRadius: 9,
+            border: "1px solid var(--color-border-subtle)",
+            background: "var(--color-bg-surface)",
+            color: "var(--color-text-muted)",
+            display: "grid",
+            placeItems: "center",
+          }}
+        >
+          <NavInboxGlyph size={16} />
+        </span>
       )}
+
       <div
         style={{
+          flex: 1,
+          minWidth: 0,
           display: "flex",
-          alignItems: "flex-start",
-          gap: 8,
-          paddingLeft: selectMode ? 22 : 0,
+          flexDirection: "column",
+          gap: 5,
+          paddingLeft: 0,
         }}
       >
-        <span
-          style={{
-            flex: 1,
-            minWidth: 0,
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-            lineHeight: 1.35,
-            letterSpacing: -0.1,
-          }}
-        >
-          {task.title}
-        </span>
-        {task.priority && <PriorityPill priority={task.priority} />}
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
+          <span
+            style={{
+              flex: 1,
+              minWidth: 0,
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+              lineHeight: 1.35,
+              letterSpacing: -0.1,
+            }}
+          >
+            {task.title}
+          </span>
+          {task.priority && <PriorityPill priority={task.priority} />}
+        </div>
+        {(goalName || sourceLabel || age || task.time) && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              flexWrap: "wrap",
+            }}
+          >
+            {goalName && <GoalDiamond goalName={goalName} />}
+            {sourceLabel && (
+              <span
+                style={{
+                  fontSize: 9,
+                  fontFamily: "var(--font-mono)",
+                  letterSpacing: 0.7,
+                  padding: "2px 5px",
+                  borderRadius: 4,
+                  lineHeight: 1,
+                  color: isAgentAdded ? "var(--color-accent-primary)" : "var(--color-text-dim)",
+                  background: isAgentAdded ? "var(--color-accent-primary-muted)" : "var(--color-fill-faint)",
+                  flexShrink: 0,
+                }}
+              >
+                {sourceLabel}
+              </span>
+            )}
+            {task.time && (
+              <span
+                className="tabular"
+                style={{ fontSize: 9.5, fontFamily: "var(--font-mono)", color: "var(--color-text-muted)", flexShrink: 0 }}
+              >
+                {task.time}
+              </span>
+            )}
+            {age && (
+              <span
+                className="tabular"
+                style={{ fontSize: 9.5, fontFamily: "var(--font-mono)", color: "var(--color-text-dim)", flexShrink: 0 }}
+              >
+                {age}
+              </span>
+            )}
+          </div>
+        )}
       </div>
-      {(goalName || sourceLabel || age || task.time) && (
+
+      {/* Trailing schedule affordance: a quiet tile, not a labelled chip */}
+      {!selectMode && onSchedule && !scheduleOpen && (
+        <button
+          type="button"
+          aria-label={`Schedule ${task.title}`}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            setScheduleDate(getLocalDateString());
+            setScheduleOpen(true);
+          }}
+          style={{
+            width: 28,
+            height: 28,
+            flexShrink: 0,
+            display: "grid",
+            placeItems: "center",
+            borderRadius: 7,
+            border: "1px solid var(--color-border-subtle)",
+            background: "var(--color-bg-surface)",
+            color: "var(--color-text-secondary)",
+            cursor: "pointer",
+            transition: tx("border-color", "instant"),
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--color-accent-primary)")}
+          onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--color-border-subtle)")}
+        >
+          <CalendarIcon size={14} strokeWidth={1.8} />
+        </button>
+      )}
+
+      {!selectMode && onSchedule && scheduleOpen && (
         <div
           style={{
+            position: "absolute",
+            left: -1,
+            right: -1,
+            top: "100%",
+            zIndex: 5,
             display: "flex",
             alignItems: "center",
-            gap: 5,
-            flexWrap: "wrap",
-            paddingLeft: selectMode ? 22 : 0,
+            gap: 6,
+            padding: "8px 10px",
+            background: "var(--color-bg-floating)",
+            border: "1px solid var(--color-border-strong)",
+            borderRadius: "0 0 10px 10px",
+            boxShadow: "0 8px 20px rgba(44,33,24,0.14)",
           }}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
         >
-          {goalName && (
-            <span style={{ minWidth: 0, flexShrink: 1, display: "inline-flex" }}>
-              <GoalPill goalName={goalName} />
-            </span>
-          )}
-          {sourceLabel && (
-            <span
-              style={{
-                fontSize: 9,
-                fontFamily: "var(--font-mono)",
-                letterSpacing: 0.7,
-                padding: "2px 5px",
-                borderRadius: 4,
-                lineHeight: 1,
-                color: isAgentAdded ? "var(--color-accent-primary)" : "var(--color-text-dim)",
-                background: isAgentAdded ? "var(--color-accent-primary-muted)" : "var(--color-fill-faint)",
-                flexShrink: 0,
-              }}
-            >
-              {sourceLabel}
-            </span>
-          )}
-          {task.time && (
-            <span
-              className="tabular"
-              style={{ fontSize: 9.5, fontFamily: "var(--font-mono)", color: "var(--color-text-muted)", flexShrink: 0 }}
-            >
-              {task.time}
-            </span>
-          )}
-          {age && (
-            <span
-              className="tabular"
-              style={{ fontSize: 9.5, fontFamily: "var(--font-mono)", color: "var(--color-text-dim)", flexShrink: 0 }}
-            >
-              {age}
-            </span>
-          )}
-        </div>
-      )}
-      {!selectMode && onSchedule && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, paddingLeft: selectMode ? 22 : 0 }} onClick={(e) => e.stopPropagation()}>
-          {scheduleOpen ? (
-            <div style={{ display: "flex", minWidth: 0, flex: 1, alignItems: "center", gap: 6 }}>
-              <input
-                type="date"
-                value={scheduleDate}
-                min={getLocalDateString()}
-                onChange={(e) => setScheduleDate(e.target.value)}
-                aria-label={`Schedule ${task.title}`}
-                onPointerDown={(e) => e.stopPropagation()}
-                style={{
-                  minWidth: 0,
-                  flex: 1,
-                  borderRadius: 6,
-                  border: "1px solid var(--color-border-default)",
-                  background: "var(--color-fill-soft)",
-                  padding: "4px 8px",
-                  fontSize: 11,
-                  color: "var(--color-text-primary)",
-                  outline: "none",
-                }}
-              />
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (scheduleDate) onSchedule(scheduleDate);
-                  setScheduleOpen(false);
-                }}
-                aria-label={`Confirm schedule for ${task.title}`}
-                style={{
-                  display: "grid",
-                  placeItems: "center",
-                  width: 24,
-                  height: 24,
-                  borderRadius: 6,
-                  border: "1px solid var(--color-success)",
-                  background: "var(--color-success-muted)",
-                  color: "var(--color-success)",
-                  cursor: "pointer",
-                }}
-              >
-                <CheckIcon size={12} strokeWidth={2.4} />
-              </button>
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setScheduleOpen(false);
-                }}
-                aria-label={`Cancel scheduling ${task.title}`}
-                style={{
-                  display: "grid",
-                  placeItems: "center",
-                  width: 24,
-                  height: 24,
-                  borderRadius: 6,
-                  border: "1px solid var(--color-border-default)",
-                  background: "transparent",
-                  color: "var(--color-text-mute)",
-                  cursor: "pointer",
-                }}
-              >
-                <CloseIcon size={12} strokeWidth={2.2} />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                setScheduleDate(getLocalDateString());
-                setScheduleOpen(true);
-              }}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 5,
-                height: 24,
-                padding: "0 8px",
-                borderRadius: 6,
-                border: "1px solid var(--color-border-default)",
-                background: "var(--color-bg-floating)",
-                color: "var(--color-text-mute)",
-                fontSize: 10.5,
-                fontWeight: 600,
-                fontFamily: "var(--font-sans)",
-                cursor: "pointer",
-                transition: tx("border-color", "instant"),
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--color-accent-primary)")}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--color-border-default)")}
-            >
-              <CalendarIcon size={11} strokeWidth={1.8} />
-              Schedule
-            </button>
-          )}
+          <input
+            type="date"
+            value={scheduleDate}
+            min={getLocalDateString()}
+            onChange={(e) => setScheduleDate(e.target.value)}
+            aria-label={`Schedule ${task.title}`}
+            style={{
+              minWidth: 0,
+              flex: 1,
+              borderRadius: 6,
+              border: "1px solid var(--color-border-default)",
+              background: "var(--color-fill-soft)",
+              padding: "4px 8px",
+              fontSize: 11,
+              color: "var(--color-text-primary)",
+              outline: "none",
+            }}
+          />
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (scheduleDate) onSchedule(scheduleDate);
+              setScheduleOpen(false);
+            }}
+            aria-label={`Confirm schedule for ${task.title}`}
+            style={{
+              display: "grid",
+              placeItems: "center",
+              width: 24,
+              height: 24,
+              borderRadius: 6,
+              border: "1px solid var(--color-success)",
+              background: "var(--color-success-muted)",
+              color: "var(--color-success)",
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
+          >
+            <CheckIcon size={12} strokeWidth={2.4} />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setScheduleOpen(false);
+            }}
+            aria-label={`Cancel scheduling ${task.title}`}
+            style={{
+              display: "grid",
+              placeItems: "center",
+              width: 24,
+              height: 24,
+              borderRadius: 6,
+              border: "1px solid var(--color-border-default)",
+              background: "transparent",
+              color: "var(--color-text-mute)",
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
+          >
+            <CloseIcon size={12} strokeWidth={2.2} />
+          </button>
         </div>
       )}
       </motion.div>
@@ -558,15 +592,7 @@ function InboxSidebarComponent({
           </span>
         </div>
         <div style={{ flex: 1 }} />
-        {tasks.length > 0 && (selectMode ? (
-          <button
-            type="button"
-            onClick={exitSelectMode}
-            className="inline-flex items-center gap-1 rounded-[6px] border border-line px-2 py-1 text-[10px] text-ink-mute hover:text-ink"
-          >
-            <CloseIcon size={11} strokeWidth={2.2} /> Cancel
-          </button>
-        ) : (
+        {!selectMode && tasks.length > 0 && (
           <button
             type="button"
             onClick={() => setSelectMode(true)}
@@ -574,10 +600,74 @@ function InboxSidebarComponent({
           >
             Select
           </button>
-        ))}
+        )}
       </div>
 
-      {/* Search */}
+      {/* Search — or the selection meter while triaging */}
+      {selectMode ? (
+        <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--color-border-subtle)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, minHeight: 26 }}>
+            <button
+              type="button"
+              onClick={exitSelectMode}
+              style={{ fontSize: 11.5, color: "var(--color-text-secondary)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={toggleSelectAll}
+              style={{ fontSize: 11.5, fontWeight: 600, color: "var(--color-accent-primary)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+            >
+              {allFilteredSelected ? "Clear" : "Select all"}
+            </button>
+          </div>
+          <div
+            aria-label={`${visibleSelectedIds.size} of ${filtered.length} tasks selected`}
+            style={{
+              marginTop: 8,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              padding: "10px 12px",
+              borderRadius: 10,
+              background: "var(--color-bg-elevated)",
+              border: "1px solid var(--color-border-default)",
+            }}
+          >
+            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>
+              {visibleSelectedIds.size === 0 ? "Choose tasks" : `${visibleSelectedIds.size} selected`}
+            </span>
+            <div style={{ width: 116, display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
+              <div
+                aria-hidden
+                style={{ height: 7, borderRadius: 99, background: "var(--color-accent-dim)", overflow: "hidden" }}
+              >
+                <motion.div
+                  initial={false}
+                  animate={{
+                    width: `${filtered.length === 0 ? 0 : Math.round((visibleSelectedIds.size / filtered.length) * 100)}%`,
+                  }}
+                  transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                  style={{ height: "100%", borderRadius: 99, background: "var(--color-accent-primary)" }}
+                />
+              </div>
+              <span
+                className="tabular"
+                style={{
+                  fontSize: 9.5,
+                  fontFamily: "var(--font-mono)",
+                  textAlign: "right",
+                  color: "var(--color-text-muted)",
+                }}
+              >
+                {filtered.length === 0 ? 0 : Math.round((visibleSelectedIds.size / filtered.length) * 100)}%
+              </span>
+            </div>
+          </div>
+        </div>
+      ) : (
       <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--color-border-subtle)" }}>
         <div style={{ position: "relative" }}>
           <span
@@ -653,6 +743,7 @@ function InboxSidebarComponent({
           ))}
         </div>
       </div>
+      )}
 
       {/* Task list */}
       <div
@@ -694,18 +785,18 @@ function InboxSidebarComponent({
             <span
               aria-hidden
               style={{
-                width: 52,
-                height: 52,
+                width: 56,
+                height: 56,
                 margin: "0 auto 12px",
                 display: "grid",
                 placeItems: "center",
                 borderRadius: 99,
-                border: "1px solid var(--color-border-default)",
-                background: "var(--color-bg-floating)",
+                border: "1px solid var(--color-border-subtle)",
+                background: "var(--color-bg-surface)",
                 color: "var(--color-text-dim)",
               }}
             >
-              <InboxTrayIcon size={24} strokeWidth={1.6} />
+              <InboxTrayIcon size={26} strokeWidth={1.6} />
             </span>
             <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", fontFamily: "var(--font-sans)" }}>
               {query ? "No matches." : "Everything has a place."}
@@ -720,20 +811,7 @@ function InboxSidebarComponent({
       {/* Footer */}
       <div style={{ padding: 10, borderTop: "1px solid var(--color-border-subtle)" }}>
         {selectMode && (
-          <>
-            <div style={{ marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-              <button
-                type="button"
-                onClick={toggleSelectAll}
-                style={{ fontSize: 10.5, fontWeight: 600, color: "var(--color-accent-primary)", cursor: "pointer", background: "none", border: "none" }}
-              >
-                {allFilteredSelected ? "Deselect all" : "Select all"}
-              </button>
-              <span className="tabular" style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--color-text-dim)" }}>
-                {visibleSelectedIds.size} selected
-              </span>
-            </div>
-            <div style={{ marginBottom: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+          <div style={{ marginBottom: onOpenQuickAdd ? 8 : 0, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
               <button
                 type="button"
                 disabled={visibleSelectedIds.size === 0 || !onDeleteMany}
@@ -743,10 +821,10 @@ function InboxSidebarComponent({
                   alignItems: "center",
                   justifyContent: "center",
                   gap: 5,
-                  height: 32,
-                  borderRadius: 8,
+                  height: 34,
+                  borderRadius: 10,
                   border: "1px solid var(--color-error)",
-                  background: "var(--color-error-muted)",
+                  background: "var(--color-bg-floating)",
                   color: "var(--color-error)",
                   fontSize: 11,
                   fontWeight: 600,
@@ -765,23 +843,23 @@ function InboxSidebarComponent({
                   alignItems: "center",
                   justifyContent: "center",
                   gap: 5,
-                  height: 32,
-                  borderRadius: 8,
-                  border: "1px solid var(--color-success)",
-                  background: "var(--color-success-muted)",
-                  color: "var(--color-success)",
+                  height: 34,
+                  borderRadius: 10,
+                  border: "1px solid transparent",
+                  background: "var(--color-accent-primary)",
+                  color: "var(--color-text-inverse)",
                   fontSize: 11,
                   fontWeight: 600,
                   fontFamily: "var(--font-sans)",
                   cursor: "pointer",
+                  boxShadow: "0 1px 2px rgba(44,33,24,0.14)",
                 }}
               >
                 <CheckIcon size={12} strokeWidth={2.4} /> Mark done
               </button>
             </div>
-          </>
         )}
-        {onOpenQuickAdd && (
+        {!selectMode && onOpenQuickAdd && (
           <button
             onClick={onOpenQuickAdd}
             style={{
