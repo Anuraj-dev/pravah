@@ -519,7 +519,7 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
         transition={T_FAST}
         className={cn(
           "fixed inset-0 z-50 flex items-start justify-center pt-24",
-          "bg-[var(--color-bg-overlay)] backdrop-blur-sm"
+          "bg-[var(--color-bg-overlay)]"
         )}
         onClick={handleBackdropClick}
       >

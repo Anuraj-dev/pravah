@@ -29,7 +29,6 @@ import { KairoTaskProposalList } from "./KairoTaskProposalList";
 
 const ACCENT = "var(--color-accent-primary)";
 const ACCENT_SOFT = "rgba(88, 68, 184, 0.2)";
-const ACCENT_GLOW = "rgba(103, 83, 199, 0.35)";
 
 interface KairoProps {
   onActiveChange?: (active: boolean) => void;
@@ -512,8 +511,6 @@ export function Kairo({ onActiveChange, tasks, inboxTasks, onOpenSettings }: Kai
               inset: 0,
               pointerEvents: "auto",
               background: "var(--color-bg-overlay)",
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)",
               zIndex: 40,
               willChange: "opacity",
               cursor: "default",
@@ -550,12 +547,12 @@ export function Kairo({ onActiveChange, tasks, inboxTasks, onOpenSettings }: Kai
               ? "linear-gradient(180deg, var(--color-bg-surface) 0%, var(--color-bg-base) 100%)"
               : "var(--color-bg-surface)",
             border: open
-              ? "1px solid rgba(103, 83, 199, 0.32)"
+              ? "1px solid var(--color-accent-primary)"
               : "1px solid var(--color-border-default)",
-            borderRadius: open ? 8 : 7,
+            borderRadius: open ? 14 : 12,
             boxShadow: open
-              ? `0 46px 90px rgba(39, 30, 22, 0.45), 0 0 0 1px var(--color-fill-soft), 0 0 90px rgba(103, 83, 199, 0.22)`
-              : `0 20px 50px rgba(39, 30, 22, 0.45), 0 0 0 1px ${ACCENT_GLOW}`,
+              ? `0 46px 90px rgba(39, 30, 22, 0.32), 0 0 0 1px var(--color-border-subtle)`
+              : `0 16px 40px rgba(39, 30, 22, 0.22), 0 1px 2px rgba(44, 33, 24, 0.12)`,
             overflow: "hidden",
             transition: tx(["box-shadow", "border-color", "background-color"], "slow"),
           }}
@@ -572,18 +569,6 @@ export function Kairo({ onActiveChange, tasks, inboxTasks, onOpenSettings }: Kai
                     "linear-gradient(var(--color-fill-faint) 1px, transparent 1px), linear-gradient(90deg, var(--color-fill-faint) 1px, transparent 1px)",
                   backgroundSize: "48px 48px",
                   opacity: 0.26,
-                }}
-              />
-              <div
-                aria-hidden
-                style={{
-                  position: "absolute",
-                  inset: "0 auto 0 0",
-                  width: 3,
-                  background: isKairoConfigured(config)
-                    ? "linear-gradient(180deg, var(--color-success), var(--color-accent-primary))"
-                    : "linear-gradient(180deg, var(--color-error), var(--color-accent-primary))",
-                  boxShadow: `0 0 24px ${ACCENT_GLOW}`,
                 }}
               />
             </>
@@ -736,18 +721,6 @@ export function Kairo({ onActiveChange, tasks, inboxTasks, onOpenSettings }: Kai
             }}
           >
             {!open && <KairoMark size={30} />}
-            {!open && (
-              <span
-                aria-hidden
-                style={{
-                  position: "absolute",
-                  inset: "10px auto 10px 0",
-                  width: 3,
-                  background: `linear-gradient(180deg, ${ACCENT}, transparent)`,
-                  boxShadow: `0 0 18px ${ACCENT_GLOW}`,
-                }}
-              />
-            )}
             <div style={{ position: "relative", flex: 1 }}>
               {!open && val.length === 0 && (
                 <KairoPlaceholderOverlay
