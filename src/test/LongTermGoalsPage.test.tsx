@@ -22,8 +22,8 @@ describe("LongTermGoalsPage", () => {
     expect(screen.getByText("Goals and task links are server-backed.")).toBeInTheDocument();
     expect(screen.getByText("First")).toBeInTheDocument();
     expect(screen.getByText("Second")).toBeInTheDocument();
-    expect(screen.getByText("1/2 done")).toBeInTheDocument();
-    expect(screen.getByText("0/0 done")).toBeInTheDocument();
+    expect(screen.getByText("1 of 2 done")).toBeInTheDocument();
+    expect(screen.getByText("No tasks linked")).toBeInTheDocument();
   });
 
   it("calls create and delete handlers in server-backed mode", async () => {
