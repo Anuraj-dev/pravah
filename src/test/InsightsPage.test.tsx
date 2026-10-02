@@ -40,7 +40,7 @@ describe("InsightsPage", () => {
     );
 
     expect(screen.getByText("Recent momentum")).toBeInTheDocument();
-    expect(screen.getByText("done in 30 days")).toBeInTheDocument();
+    expect(screen.getByText("tasks completed")).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Completed" })).toBeInTheDocument();
     expect(screen.getByText("Overdue")).toBeInTheDocument();
   });
@@ -81,7 +81,7 @@ describe("InsightsPage", () => {
     expect(screen.getByText("Recent report")).toBeInTheDocument();
     expect(screen.queryByText("Older report")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "All" }));
+    fireEvent.click(screen.getByRole("tab", { name: "All time" }));
     fireEvent.change(screen.getByRole("searchbox", { name: "Search completed tasks" }), {
       target: { value: "older" },
     });

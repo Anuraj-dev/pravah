@@ -1,9 +1,15 @@
 import { useMemo, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import type { Task } from "../types";
 import { cn, getLocalDateString } from "../lib/utils";
 import { isTaskCompleted, isTaskOnTimeline } from "../lib/taskState";
 import { goalWash } from "../lib/goalWash";
-import { BarChartIcon, LineChartIcon, PulseIcon } from "./ui/icons";
+import { EASE_OUT_EXPO } from "../lib/motion";
+import { LedgerCheckIcon } from "./ui/icons";
+import { Segmented } from "./ui/Segmented";
+import { MomentumChart } from "./insights/MomentumChart";
+import { RhythmCardBody } from "./insights/RhythmCard";
+import { JourneyCardBody, type JourneyStats } from "./insights/JourneyCard";
 
 type InsightsTab = "stats" | "completed";
 type HistoryWindow = "7d" | "30d" | "all";
@@ -11,20 +17,12 @@ type RangeWindow = "7d" | "30d" | "90d";
 
 const RANGE_DAYS: Record<RangeWindow, number> = { "7d": 7, "30d": 30, "90d": 90 };
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-// Accent-derived heatmap ramp, matching the mobile chart tokens:
-// [0.34, 0.56, 0.78, 1.0] alphas of the accent color over the empty track.
-const HEAT_RAMP = [
-  "rgba(var(--color-accent-primary-rgb), 0.34)",
-  "rgba(var(--color-accent-primary-rgb), 0.56)",
-  "rgba(var(--color-accent-primary-rgb), 0.78)",
-  "rgba(var(--color-accent-primary-rgb), 1)",
-];
-const HEAT_EMPTY = "rgba(78, 62, 43, 0.07)";
+const HEATMAP_DAYS = 182;
 
 interface InsightsPageProps {
   tasks: Task[];
   completedTasks?: Task[];
-  goals?: Array<{ id: string; text: string }>;
+  goals?: Array<{ id: string; text: string; deadline?: string | null; priority?: "p1" | "p2" | "p3" | null }>;
   progressByGoalId?: Record<string, { total: number; done: number }>;
 }
 
@@ -96,37 +94,105 @@ function formatHour(hour: number): string {
   return `${hour % 12 || 12} ${period}`;
 }
 
-function Card({ children, className }: { children: React.ReactNode; className?: string }) {
+function Eyebrow({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        fontSize: 10,
+        fontFamily: "var(--font-mono)",
+        letterSpacing: 1,
+        color: "var(--color-text-dim)",
+        textTransform: "uppercase",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function Card({ children, className, compact = false }: { children: React.ReactNode; className?: string; compact?: boolean }) {
   return (
     <section
       className={cn(
-        "rounded-[14px] border border-line-subtle bg-[var(--color-bg-elevated)] p-5",
-        "shadow-[0_1px_2px_rgba(44,33,24,0.05)]",
+        "bg-[var(--color-bg-elevated)]",
+        compact ? "rounded-[10px]" : "rounded-[16px]",
         className
       )}
+      style={{
+        border: "1px solid var(--color-border-subtle)",
+        padding: compact ? 14 : 20,
+      }}
     >
       {children}
     </section>
   );
 }
 
-function Eyebrow({ icon: Icon, children }: { icon: typeof PulseIcon; children: React.ReactNode }) {
+function Section({
+  index,
+  eyebrow,
+  caption,
+  right,
+  children,
+}: {
+  index: number;
+  eyebrow: string;
+  caption?: string;
+  right?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const reduceMotion = useReducedMotion();
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-        fontSize: 9.5,
-        fontFamily: "var(--font-mono)",
-        letterSpacing: 1.2,
-        color: "var(--color-text-dim)",
-        textTransform: "uppercase",
-      }}
+    <motion.section
+      initial={reduceMotion ? false : { opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.36, ease: EASE_OUT_EXPO, delay: reduceMotion ? 0 : index * 0.06 }}
     >
-      <Icon size={12} strokeWidth={1.8} />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: "space-between",
+          gap: 12,
+          flexWrap: "wrap",
+          minHeight: 30,
+          marginBottom: 10,
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <Eyebrow>{eyebrow}</Eyebrow>
+          {caption && (
+            <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--color-text-muted)" }}>{caption}</p>
+          )}
+        </div>
+        {right}
+      </div>
       {children}
-    </div>
+    </motion.section>
+  );
+}
+
+function DeltaChip({ delta, rangeTotal, previousTotal, days }: { delta: number; rangeTotal: number; previousTotal: number; days: number }) {
+  let label: string | null = null;
+  let color = "var(--color-text-muted)";
+  if (previousTotal === 0) {
+    if (rangeTotal > 0) {
+      label = `+${rangeTotal}`;
+      color = "var(--color-success)";
+    }
+  } else if (delta === 0) {
+    label = "Even";
+  } else {
+    const pct = Math.round((Math.abs(delta) / previousTotal) * 100);
+    label = `${delta > 0 ? "↑" : "↓"} ${pct}%`;
+    color = delta > 0 ? "var(--color-success)" : "var(--color-text-secondary)";
+  }
+  if (label === null) return null;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "baseline", gap: 8 }}>
+      <span style={{ fontSize: 14, fontWeight: 600, color, fontFamily: "var(--font-sans)" }}>{label}</span>
+      <span style={{ fontSize: 12.5, color: "var(--color-text-muted)" }}>vs previous {days} days</span>
+    </span>
   );
 }
 
@@ -153,9 +219,7 @@ export function InsightsPage({
         return typeof date === "string" && date < today;
       }
     ).length;
-    const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
-    return { totalTasks, completedTasks, overdueTasks, completionRate };
+    return { totalTasks, completedTasks, overdueTasks };
   }, [tasks]);
 
   const analyticsTasks = completedTaskSource ?? tasks.filter(isTaskCompleted);
@@ -191,18 +255,21 @@ export function InsightsPage({
     return {
       series,
       rangeTotal,
+      previousTotal,
       delta: rangeTotal - previousTotal,
       streak: streakFor(analyticsTasks, historyNow),
       longestStreak: longestStreakFor(analyticsTasks),
       bestWeekday: weekdayCounts[bestWeekdayIndex] > 0 ? WEEKDAY_LABELS[bestWeekdayIndex] : null,
       peakHour: hourCounts[peakHour] > 0 ? formatHour(peakHour) : null,
       medianCycle,
+      weekdayCounts,
+      hourCounts,
     };
   }, [analyticsTasks, historyNow, range]);
 
-  // Consistency heatmap: last 12 full weeks, aligned so each column is a week.
+  // Journey: 26 full weeks, Sunday-aligned columns, cells stop at today.
   const heat = useMemo(() => {
-    const days = 84;
+    const days = HEATMAP_DAYS;
     const counts = completionSeries(analyticsTasks, historyNow, days);
     const done = new Set(
       analyticsTasks
@@ -211,7 +278,6 @@ export function InsightsPage({
     );
     const start = localDayStart(historyNow);
     start.setDate(start.getDate() - (days - 1));
-    // Align to Sunday for week columns.
     while (start.getDay() !== 0) start.setDate(start.getDate() - 1);
     const weeks: Array<Array<{ count: number; date: string }>> = [];
     const cursor = new Date(start);
@@ -220,23 +286,45 @@ export function InsightsPage({
       const week: Array<{ count: number; date: string }> = [];
       for (let d = 0; d < 7; d += 1) {
         if (cursor.getTime() > historyNow) break;
-        const date = getLocalDateString(cursor);
-        week.push({ count: done.has(date) ? counts[index] ?? 0 : counts[index] ?? 0, date });
+        week.push({ count: counts[index] ?? 0, date: getLocalDateString(cursor) });
         cursor.setDate(cursor.getDate() + 1);
         index += 1;
       }
       weeks.push(week);
     }
-    return weeks;
+    return { weeks, done };
   }, [analyticsTasks, historyNow]);
 
+  const journeyStats: JourneyStats = useMemo(() => {
+    const doneList = [...heat.done].sort();
+    const lastActiveDate = doneList.length > 0 ? doneList[doneList.length - 1] : null;
+    return {
+      activeDays: doneList.length,
+      currentStreak: analytics.streak,
+      longestStreak: analytics.longestStreak,
+      lastActiveDate,
+      overdueCount: stats.overdueTasks,
+      totalCompletions: analyticsTasks.length,
+    };
+  }, [analytics.longestStreak, analytics.streak, analyticsTasks.length, heat.done, stats.overdueTasks]);
+
   const goalRows = useMemo(
-    () => goals
-      .map((goal) => ({ ...goal, ...(progressByGoalId[goal.id] ?? { total: 0, done: 0 }) }))
-      .filter((goal) => goal.total > 0)
-      .sort((a, b) => (b.done / b.total) - (a.done / a.total))
-      .slice(0, 6),
-    [goals, progressByGoalId]
+    () => {
+      const today = getLocalDateString();
+      const dueSoonCutoff = getLocalDateString(new Date(historyNow + 5 * 86_400_000));
+      return goals
+        .map((goal) => ({ ...goal, ...(progressByGoalId[goal.id] ?? { total: 0, done: 0 }) }))
+        .filter((goal) => goal.total > 0)
+        .sort((a, b) => (b.done / b.total) - (a.done / a.total))
+        .slice(0, 6)
+        .map((goal) => {
+          const deadline = typeof goal.deadline === "string" ? goal.deadline : null;
+          const overdue = deadline !== null && deadline < today;
+          const dueSoon = deadline !== null && !overdue && deadline <= dueSoonCutoff;
+          return { ...goal, overdue, dueSoon };
+        });
+    },
+    [goals, progressByGoalId, historyNow]
   );
 
   const completed = useMemo(() => {
@@ -257,365 +345,330 @@ export function InsightsPage({
       .sort((a, b) => completionTimestamp(b) - completionTimestamp(a));
   }, [completedTaskSource, historyNow, historyQuery, historyWindow, tasks]);
 
-  const peak = Math.max(...analytics.series, 1);
-
   return (
     <div className="h-full overflow-y-auto bg-[var(--color-bg-base)]">
-      <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col px-6 py-6">
+      <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col px-6 pb-10 pt-5">
+        {/* Page row: snapshot kicker + tab switch */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             gap: 12,
-            marginBottom: 20,
+            marginBottom: 22,
             flexWrap: "wrap",
           }}
         >
-          <Eyebrow icon={PulseIcon}>On-device snapshot · {stats.totalTasks} tasks tracked</Eyebrow>
-          <div
-            className="inline-flex gap-0.5 rounded-[8px] border border-line-subtle bg-fill-soft p-[3px]"
-            role="tablist"
-            aria-label="Insights tabs"
-          >
-            {(["stats", "completed"] as const).map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === tab}
-                onClick={() => setActiveTab(tab)}
-                className={cn(
-                  "rounded-[6px] px-3 py-1.5 text-xs font-medium transition-colors",
-                  activeTab === tab
-                    ? "bg-[var(--color-bg-floating)] text-accent shadow-[0_1px_2px_rgba(44,33,24,0.08)]"
-                    : "text-ink-soft hover:text-ink"
-                )}
-              >
-                {tab === "stats" ? "Stats" : "Completed"}
-              </button>
-            ))}
-          </div>
+          <Eyebrow>On-device snapshot · {stats.totalTasks} tasks tracked</Eyebrow>
+          <Segmented
+            ariaLabel="Insights tabs"
+            value={activeTab}
+            onChange={setActiveTab}
+            options={[
+              { value: "stats", label: "Stats" },
+              { value: "completed", label: "Completed" },
+            ]}
+          />
         </div>
 
         {activeTab === "stats" ? (
-          <div className="space-y-4">
-            {/* Hero momentum chart */}
-            <Card>
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <Eyebrow icon={LineChartIcon}>Recent momentum</Eyebrow>
-                  <div className="mt-3 flex items-baseline gap-3">
-                    <span
-                      className="tabular"
-                      style={{
-                        fontSize: 30,
-                        lineHeight: 1.1,
-                        fontWeight: 600,
-                        letterSpacing: -0.8,
-                        color: "var(--color-text-primary)",
-                        fontFamily: "var(--font-sans)",
-                      }}
-                    >
-                      {analytics.rangeTotal}
-                    </span>
-                    <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
-                      done in {RANGE_DAYS[range]} days
-                    </span>
-                    {analytics.delta !== 0 && (
-                      <span
-                        style={{
-                          fontSize: 11,
-                          fontFamily: "var(--font-mono)",
-                          fontWeight: 500,
-                          color:
-                            analytics.delta > 0 ? "var(--color-success)" : "var(--color-error)",
-                        }}
-                      >
-                        {analytics.delta > 0 ? "▲" : "▼"} {Math.abs(analytics.delta)} vs prior
-                      </span>
-                    )}
-                  </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 30 }}>
+            <Section
+              index={0}
+              eyebrow="Recent momentum"
+              right={
+                <Segmented
+                  ariaLabel="Momentum range"
+                  value={range}
+                  onChange={setRange}
+                  options={[
+                    { value: "7d", label: "7D", ariaLabel: "Show last 7 days" },
+                    { value: "30d", label: "30D", ariaLabel: "Show last 30 days" },
+                    { value: "90d", label: "90D", ariaLabel: "Show last 90 days" },
+                  ]}
+                />
+              }
+            >
+              <Card>
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "4px 12px" }}>
+                  <span
+                    className="tabular"
+                    style={{
+                      fontSize: 30,
+                      lineHeight: 1.2,
+                      fontWeight: 600,
+                      letterSpacing: -0.8,
+                      color: "var(--color-text-primary)",
+                      fontFamily: "var(--font-display)",
+                    }}
+                  >
+                    {analytics.rangeTotal}
+                  </span>
+                  <span style={{ fontSize: 15, lineHeight: 1.4, color: "var(--color-text-secondary)" }}>
+                    tasks completed
+                  </span>
+                  <DeltaChip
+                    delta={analytics.delta}
+                    rangeTotal={analytics.rangeTotal}
+                    previousTotal={analytics.previousTotal}
+                    days={RANGE_DAYS[range]}
+                  />
                 </div>
-                <div
-                  className="flex items-center gap-1 rounded-[8px] border border-line-subtle bg-fill-soft p-1"
-                  role="group"
-                  aria-label="Momentum range"
-                >
-                  {(["7d", "30d", "90d"] as const).map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      aria-pressed={range === option}
-                      onClick={() => setRange(option)}
-                      className={range === option
-                        ? "rounded-[6px] bg-[var(--color-bg-floating)] px-2 py-1 text-[11px] font-semibold text-ink shadow-[0_1px_2px_rgba(44,33,24,0.08)]"
-                        : "rounded-[6px] px-2 py-1 text-[11px] text-ink-mute hover:text-ink"}
-                    >
-                      {option.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div
-                className="mt-6 flex h-32 items-end gap-[3px]"
-                role="img"
-                aria-label={`${analytics.rangeTotal} tasks completed in the last ${RANGE_DAYS[range]} days`}
-              >
-                {analytics.series.map((count, index) => (
-                  <div key={`${range}-${index}`} className="group relative flex h-full flex-1 items-end">
-                    <div
-                      className="w-full rounded-t-[4px] transition-[height] duration-300"
-                      style={{
-                        height: `${Math.max(count > 0 ? 6 : 2, (count / peak) * 100)}%`,
-                        background: count > 0 ? "var(--color-accent-primary)" : HEAT_EMPTY,
-                        opacity: count > 0 ? (index / analytics.series.length) * 0.35 + 0.65 : 1,
-                      }}
-                      title={`${count} completed`}
-                    />
-                  </div>
-                ))}
-              </div>
-            </Card>
+                <MomentumChart series={analytics.series} days={RANGE_DAYS[range]} now={historyNow} />
+              </Card>
+            </Section>
 
-            {/* Consistency heatmap + streaks */}
-            <Card>
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <Eyebrow icon={BarChartIcon}>Consistency</Eyebrow>
-                  <p className="mt-2 text-sm text-ink-soft">Every day you finished something, over the last twelve weeks.</p>
-                </div>
-              </div>
-              <div className="mt-5 flex flex-wrap items-start gap-8">
-                <div>
-                  <div className="flex gap-[3px]" role="img" aria-label="Completion heatmap">
-                    {heat.map((week, weekIndex) => (
-                      <div key={weekIndex} className="flex flex-col gap-[3px]">
-                        {week.map((day) => {
-                          const color =
-                            day.count === 0
-                              ? HEAT_EMPTY
-                              : day.count === 1
-                              ? HEAT_RAMP[0]
-                              : day.count === 2
-                              ? HEAT_RAMP[1]
-                              : day.count <= 4
-                              ? HEAT_RAMP[2]
-                              : HEAT_RAMP[3];
-                          return (
-                            <span
-                              key={day.date}
-                              title={`${day.date}: ${day.count} done`}
-                              style={{
-                                width: 11,
-                                height: 11,
-                                borderRadius: 3,
-                                background: color,
-                              }}
-                            />
-                          );
-                        })}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 flex items-center gap-1.5 text-[10px] text-ink-dim" style={{ fontFamily: "var(--font-mono)" }}>
-                    <span>LESS</span>
-                    <span style={{ width: 10, height: 10, borderRadius: 3, background: HEAT_EMPTY }} />
-                    {HEAT_RAMP.map((color) => (
-                      <span key={color} style={{ width: 10, height: 10, borderRadius: 3, background: color }} />
-                    ))}
-                    <span>MORE</span>
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 0 }}>
-                  {[
-                    { label: "Current streak", value: `${analytics.streak}d` },
-                    { label: "Best streak", value: `${analytics.longestStreak}d` },
-                    { label: "Overdue", value: String(stats.overdueTasks) },
-                  ].map((stat, i) => (
-                    <div
-                      key={stat.label}
-                      className="tabular"
-                      style={{
-                        padding: "0 20px",
-                        borderLeft: i === 0 ? "none" : "1px solid var(--color-border-subtle)",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: 20,
-                          fontWeight: 600,
-                          letterSpacing: -0.4,
-                          color: stat.label === "Overdue" && stats.overdueTasks > 0 ? "var(--color-error)" : "var(--color-text-primary)",
-                          fontFamily: "var(--font-sans)",
-                        }}
-                      >
-                        {stat.value}
-                      </div>
-                      <div style={{ marginTop: 2, fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: 0.8, color: "var(--color-text-dim)", textTransform: "uppercase" }}>
-                        {stat.label}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
+            <Section index={1} eyebrow="Rhythm" caption="When you do your best work">
+              <Card>
+                <RhythmCardBody
+                  weekdayCounts={analytics.weekdayCounts}
+                  hourCounts={analytics.hourCounts}
+                  medianCycle={analytics.medianCycle}
+                  completionsInRange={analytics.rangeTotal}
+                />
+              </Card>
+            </Section>
 
-            {/* Rhythm */}
-            <Card>
-              <Eyebrow icon={PulseIcon}>Work rhythm</Eyebrow>
-              <dl className="mt-4 grid gap-x-10 gap-y-3 sm:grid-cols-3">
-                {[
-                  ["Most productive day", analytics.bestWeekday],
-                  ["Peak completion hour", analytics.peakHour],
-                  ["Median cycle time", analytics.medianCycle === null ? null : `${analytics.medianCycle.toFixed(1)}d`],
-                ].map(([label, value]) => (
-                  <div key={label as string} className="border-t border-line-subtle pt-3">
-                    <dt style={{ fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: 0.8, textTransform: "uppercase", color: "var(--color-text-dim)" }}>
-                      {label}
-                    </dt>
-                    <dd style={{ marginTop: 4, fontSize: 15, fontWeight: 600, color: value ? "var(--color-text-primary)" : "var(--color-text-dim)", fontFamily: "var(--font-sans)" }}>
-                      {value ?? "Not enough data"}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </Card>
+            <Section index={2} eyebrow="Journey" caption="Every day you showed up">
+              <Card>
+                <JourneyCardBody weeks={heat.weeks} stats={journeyStats} />
+              </Card>
+            </Section>
 
             {goalRows.length > 0 && (
-              <Card>
-                <div className="flex items-center justify-between gap-3">
-                  <Eyebrow icon={BarChartIcon}>Goals in motion</Eyebrow>
-                  <span className="text-xs text-ink-dim">{goalRows.length} active</span>
-                </div>
-                <div className="mt-4 space-y-4">
-                  {goalRows.map((goal) => {
-                    const percent = Math.round((goal.done / goal.total) * 100);
-                    const wash = goalWash(goal.text);
-                    return (
-                      <div key={goal.id}>
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="min-w-0 truncate text-[13px] font-medium text-ink">{goal.text}</span>
-                          <span
-                            className="tabular"
-                            style={{
-                              fontSize: 10,
-                              fontFamily: "var(--font-mono)",
-                              padding: "2px 7px",
-                              borderRadius: 99,
-                              background: wash.background,
-                              color: wash.color,
-                              flexShrink: 0,
-                            }}
-                          >
-                            {goal.done}/{goal.total}
-                          </span>
-                        </div>
-                        <div
-                          aria-hidden
-                          className="mt-2 overflow-hidden rounded-full"
-                          style={{ height: 4, background: "var(--color-fill-strong)" }}
-                        >
-                          <div
-                            style={{
-                              height: "100%",
-                              width: `${percent}%`,
-                              borderRadius: 99,
-                              background: percent >= 100 ? "var(--color-success)" : wash.color,
-                              transition: "width 600ms cubic-bezier(0.22, 1, 0.36, 1)",
-                            }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </Card>
+              <Section
+                index={3}
+                eyebrow="Goals in motion"
+                caption={`${goalRows.length} ${goalRows.length === 1 ? "goal" : "goals"} moving forward`}
+              >
+                <Card compact>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    {goalRows.map((goal) => {
+                      const percent = Math.round((goal.done / goal.total) * 100);
+                      const wash = goalWash(goal.text);
+                      return (
+                        <GoalMotionRow
+                          key={goal.id}
+                          title={goal.text}
+                          done={goal.done}
+                          total={goal.total}
+                          percent={percent}
+                          washColor={wash.color}
+                          overdue={goal.overdue}
+                          dueSoon={goal.dueSoon}
+                        />
+                      );
+                    })}
+                  </div>
+                </Card>
+              </Section>
             )}
           </div>
         ) : (
-          <Card>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <Eyebrow icon={LineChartIcon}>Completion history</Eyebrow>
-                <p className="mt-2 text-sm text-ink-soft">A searchable record of finished work.</p>
-              </div>
-              <div
-                className="flex items-center gap-1 rounded-[8px] border border-line-subtle bg-fill-soft p-1"
-                role="group"
-                aria-label="Completion history window"
-              >
-                {(["7d", "30d", "all"] as const).map((window) => (
-                  <button
-                    key={window}
-                    type="button"
-                    onClick={() => setHistoryWindow(window)}
-                    aria-pressed={historyWindow === window}
-                    className={cn(
-                      "rounded-[6px] px-2 py-1 text-[11px] transition-colors",
-                      historyWindow === window
-                        ? "bg-[var(--color-bg-floating)] text-ink shadow-[0_1px_2px_rgba(44,33,24,0.08)] font-semibold"
-                        : "text-ink-mute hover:text-ink"
-                    )}
-                  >
-                    {window === "all" ? "All" : window.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <input
-              type="search"
-              value={historyQuery}
-              onChange={(event) => setHistoryQuery(event.target.value)}
-              placeholder="Search completed tasks…"
-              aria-label="Search completed tasks"
-              className="mt-4 w-full rounded-[8px] border border-line bg-fill-soft px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-dim focus:border-accent/45"
-            />
-            {completed.length === 0 ? (
-              <p className="mt-4 text-sm text-ink-mute">
-                {historyQuery || historyWindow !== "all"
-                  ? "No completed tasks match this view."
-                  : "No completed tasks yet."}
-              </p>
-            ) : (
-              <ul className="mt-4 space-y-1.5">
-                {completed.slice(0, 100).map((task) => (
-                  <li
-                    key={task._id}
-                    className="flex items-center justify-between gap-4 border-b border-line-subtle px-1 py-2 last:border-b-0"
-                  >
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.36, ease: EASE_OUT_EXPO }}
+          >
+            <Section
+              index={0}
+              eyebrow="Completion history"
+              caption="A searchable record of finished work."
+              right={
+                <span className="tabular" style={{ fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: 0.8, color: "var(--color-text-dim)" }}>
+                  {completed.length} SHOWN
+                </span>
+              }
+            >
+              <Card>
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                  <input
+                    type="search"
+                    value={historyQuery}
+                    onChange={(event) => setHistoryQuery(event.target.value)}
+                    placeholder="Search completed tasks…"
+                    aria-label="Search completed tasks"
+                    style={{
+                      flex: 1,
+                      minWidth: 200,
+                      borderRadius: 8,
+                      border: "1px solid var(--color-border-default)",
+                      background: "var(--color-fill-soft)",
+                      padding: "8px 12px",
+                      fontSize: 12.5,
+                      fontFamily: "var(--font-sans)",
+                      color: "var(--color-text-primary)",
+                      outline: "none",
+                      transition: "border-color 120ms cubic-bezier(0.16, 1, 0.3, 1)",
+                    }}
+                    onFocus={(e) => (e.target.style.borderColor = "rgba(var(--color-accent-primary-rgb), 0.45)")}
+                    onBlur={(e) => (e.target.style.borderColor = "var(--color-border-default)")}
+                  />
+                  <Segmented
+                    ariaLabel="Completion history window"
+                    value={historyWindow}
+                    onChange={setHistoryWindow}
+                    options={[
+                      { value: "7d", label: "7D", ariaLabel: "Last 7 days" },
+                      { value: "30d", label: "30D", ariaLabel: "Last 30 days" },
+                      { value: "all", label: "All", ariaLabel: "All time" },
+                    ]}
+                  />
+                </div>
+                {completed.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "40px 16px 28px" }}>
                     <span
+                      aria-hidden
                       style={{
-                        fontSize: 13,
+                        width: 56,
+                        height: 56,
+                        margin: "0 auto 12px",
+                        display: "grid",
+                        placeItems: "center",
+                        borderRadius: 99,
+                        border: "1px solid var(--color-border-subtle)",
+                        background: "var(--color-bg-surface)",
                         color: "var(--color-text-secondary)",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
                       }}
                     >
-                      {task.title}
+                      <LedgerCheckIcon size={26} strokeWidth={1.6} />
                     </span>
-                    <span
-                      className="tabular"
-                      style={{
-                        fontSize: 10,
-                        fontFamily: "var(--font-mono)",
-                        letterSpacing: 0.5,
-                        color: "var(--color-text-dim)",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {new Date(completionTimestamp(task)).toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)" }}>
+                      {historyQuery || historyWindow !== "all" ? "No matching completed Tasks." : "No completed tasks yet."}
+                    </div>
+                    <div style={{ marginTop: 4, fontSize: 12.5, color: "var(--color-text-muted)" }}>
+                      {historyQuery || historyWindow !== "all" ? "Change the search or time window." : "Finished work collects here."}
+                    </div>
+                  </div>
+                ) : (
+                  <ul style={{ margin: "14px 0 0", padding: 0, listStyle: "none" }}>
+                    {completed.slice(0, 100).map((task) => (
+                      <li
+                        key={task._id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          padding: "7px 2px",
+                          borderBottom: "1px solid var(--color-border-subtle)",
+                        }}
+                      >
+                        <span
+                          aria-hidden
+                          style={{
+                            width: 26,
+                            height: 26,
+                            display: "grid",
+                            placeItems: "center",
+                            borderRadius: 8,
+                            border: "1px solid var(--color-border-subtle)",
+                            background: "var(--color-bg-surface)",
+                            color: "var(--color-success)",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <LedgerCheckIcon size={13} strokeWidth={1.8} />
+                        </span>
+                        <span
+                          style={{
+                            flex: 1,
+                            minWidth: 0,
+                            fontSize: 13,
+                            color: "var(--color-text-primary)",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {task.title}
+                        </span>
+                        <span
+                          className="tabular"
+                          style={{
+                            fontSize: 10,
+                            fontFamily: "var(--font-mono)",
+                            letterSpacing: 0.5,
+                            color: "var(--color-text-dim)",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {new Date(completionTimestamp(task)).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                          }).toUpperCase()}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
+            </Section>
+          </motion.div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function GoalMotionRow({
+  title,
+  done,
+  total,
+  percent,
+  washColor,
+  overdue,
+  dueSoon,
+}: {
+  title: string;
+  done: number;
+  total: number;
+  percent: number;
+  washColor: string;
+  overdue: boolean;
+  dueSoon: boolean;
+}) {
+  const reduceMotion = useReducedMotion();
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span aria-hidden style={{ width: 8, height: 8, borderRadius: 99, background: washColor, flexShrink: 0 }} />
+        <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {title}
+        </span>
+        {overdue && (
+          <span style={{ fontSize: 9, fontFamily: "var(--font-mono)", letterSpacing: 0.8, color: "var(--color-error)", flexShrink: 0 }}>
+            OVERDUE
+          </span>
+        )}
+        {dueSoon && (
+          <span style={{ fontSize: 9, fontFamily: "var(--font-mono)", letterSpacing: 0.8, color: "var(--color-warning)", flexShrink: 0 }}>
+            DUE SOON
+          </span>
+        )}
+        <span className="tabular" style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)", flexShrink: 0 }}>
+          {done}/{total}
+        </span>
+      </div>
+      <div
+        aria-hidden
+        style={{
+          marginTop: 6,
+          height: 8,
+          borderRadius: 99,
+          background: "var(--color-fill-soft)",
+          overflow: "hidden",
+        }}
+      >
+        <motion.div
+          initial={reduceMotion ? false : { width: 0 }}
+          animate={{ width: `${percent}%` }}
+          transition={{ duration: 0.52, ease: EASE_OUT_EXPO }}
+          style={{
+            height: "100%",
+            borderRadius: 99,
+            background: percent >= 100 ? "var(--color-success)" : "var(--color-accent-primary)",
+          }}
+        />
       </div>
     </div>
   );
