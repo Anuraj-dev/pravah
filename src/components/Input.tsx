@@ -45,9 +45,9 @@ export function Input({ label, error, className, style, ...props }: InputProps) 
         }}
         onFocus={(e) => {
           if (!error) {
-            e.currentTarget.style.borderColor = "rgba(103, 83, 199, 0.55)";
+            e.currentTarget.style.borderColor = "rgba(var(--color-accent-primary-rgb), 0.55)";
             e.currentTarget.style.boxShadow =
-              "0 0 0 3px rgba(103, 83, 199, 0.18)";
+              "0 0 0 3px rgba(var(--color-accent-primary-rgb), 0.18)";
           } else {
             e.currentTarget.style.boxShadow =
               "0 0 0 3px var(--color-error-muted)";
@@ -101,9 +101,9 @@ export function Textarea({ label, error, className, style, ...props }: TextareaP
         }}
         onFocus={(e) => {
           if (!error) {
-            e.currentTarget.style.borderColor = "rgba(103, 83, 199, 0.55)";
+            e.currentTarget.style.borderColor = "rgba(var(--color-accent-primary-rgb), 0.55)";
             e.currentTarget.style.boxShadow =
-              "0 0 0 3px rgba(103, 83, 199, 0.18)";
+              "0 0 0 3px rgba(var(--color-accent-primary-rgb), 0.18)";
           } else {
             e.currentTarget.style.boxShadow =
               "0 0 0 3px var(--color-error-muted)";

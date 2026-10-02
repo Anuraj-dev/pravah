@@ -9,8 +9,10 @@ import './index.css'
 import { App } from './App.tsx'
 import { enterDemo, isDemoMode, wantsDemoFromQuery } from './demo/demoFlag'
 import { setDemoImpl } from './lib/demoBridge'
+import { applyAccent, loadAccent } from './lib/accent'
 
 const mount = async () => {
+  applyAccent(loadAccent())
   if (wantsDemoFromQuery()) enterDemo()
   if (isDemoMode()) {
     const [{ installDemoMode }, demoHooks] = await Promise.all([

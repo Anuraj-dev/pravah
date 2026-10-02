@@ -14,10 +14,10 @@ const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 // Accent-derived heatmap ramp, matching the mobile chart tokens:
 // [0.34, 0.56, 0.78, 1.0] alphas of the accent color over the empty track.
 const HEAT_RAMP = [
-  "rgba(103, 83, 199, 0.34)",
-  "rgba(103, 83, 199, 0.56)",
-  "rgba(103, 83, 199, 0.78)",
-  "rgba(103, 83, 199, 1)",
+  "rgba(var(--color-accent-primary-rgb), 0.34)",
+  "rgba(var(--color-accent-primary-rgb), 0.56)",
+  "rgba(var(--color-accent-primary-rgb), 0.78)",
+  "rgba(var(--color-accent-primary-rgb), 1)",
 ];
 const HEAT_EMPTY = "rgba(78, 62, 43, 0.07)";
 
