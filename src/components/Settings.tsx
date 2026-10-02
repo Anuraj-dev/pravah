@@ -519,7 +519,7 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
         transition={T_FAST}
         className={cn(
           "fixed inset-0 z-50 flex items-start justify-center pt-24",
-          "bg-black/60 backdrop-blur-sm"
+          "bg-[var(--color-bg-overlay)] backdrop-blur-sm"
         )}
         onClick={handleBackdropClick}
       >
@@ -533,19 +533,19 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
             "w-full max-w-2xl p-6 mx-4 md:mx-0 max-h-[82vh] overflow-y-auto overflow-x-hidden",
             "backdrop-blur-xl rounded-[4px]",
             "border",
-            "shadow-2xl shadow-black/60"
+            "shadow-2xl shadow-ink/40"
           )}
           style={{
-            background: "#101013",
-            borderColor: "rgba(255,255,255,.13)",
+            background: "var(--color-bg-surface)",
+            borderColor: "var(--color-border-default)",
           }}
         >
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-xl font-semibold text-zinc-100">Settings</h2>
+              <h2 className="text-xl font-semibold text-ink">Settings</h2>
               <p
                 className="mt-1 text-[11px] uppercase tracking-[0.14em]"
-                style={{ color: "#6b6b72", fontFamily: "var(--font-mono)" }}
+                style={{ color: "var(--color-text-muted)", fontFamily: "var(--font-mono)" }}
               >
                 Personal Workspace Controls
               </p>
@@ -555,11 +555,11 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
               aria-label="Close settings"
               className={cn(
                 "p-2 rounded-[3px]",
-                "text-zinc-500 hover:text-zinc-300",
-                "hover:bg-white/5"
+                "text-ink-mute hover:text-ink-soft",
+                "hover:bg-fill-soft"
               )}
               style={{
-                border: "1px solid rgba(255,255,255,.07)",
+                border: "1px solid var(--color-border-subtle)",
                 transition:
                   "color var(--dur-instant) var(--ease-out-expo), background-color var(--dur-instant) var(--ease-out-expo), border-color var(--dur-instant) var(--ease-out-expo)",
               }}
@@ -573,7 +573,7 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
               <h3
                 className={cn(
                   "text-[11px] font-medium uppercase tracking-[0.08em] mb-3",
-                  "text-zinc-500 flex items-center gap-2"
+                  "text-ink-mute flex items-center gap-2"
                 )}
               >
                 <Bot size={14} />
@@ -583,12 +583,12 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
               <div
                 className={cn(
                   "rounded-[4px] p-4 space-y-4 border",
-                  "bg-white/[0.03]"
+                  "bg-fill-faint"
                 )}
-                style={{ borderColor: "rgba(255,255,255,.07)" }}
+                style={{ borderColor: "var(--color-border-subtle)" }}
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <p className="max-w-[34rem] text-sm text-zinc-300 leading-6">
+                  <p className="max-w-[34rem] text-sm text-ink-soft leading-6">
                     Kairo uses your default provider profile from this browser.
                     Nothing is prefilled or rewritten.
                   </p>
@@ -596,10 +596,10 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
                     className={cn(
                       "border px-2.5 py-1 text-[10px] uppercase tracking-[0.13em]",
                       isKairoDirty
-                        ? "border-amber-400/25 bg-amber-500/10 text-amber-200"
+                        ? "border-warning/30 bg-warning-muted text-warning"
                         : hasSavedKairoConfig
-                          ? "border-emerald-400/25 bg-emerald-500/10 text-emerald-300"
-                          : "border-white/[0.08] bg-black/20 text-zinc-500"
+                          ? "border-success/30 bg-success-muted text-success"
+                          : "border-line bg-fill-soft text-ink-mute"
                     )}
                   >
                     {isKairoDirty
@@ -614,8 +614,8 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
 
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="md:col-span-2">
-                    <span className="mb-1.5 block text-[11px] uppercase tracking-[0.12em] text-zinc-500">Provider Profile</span>
-                    <div className="grid grid-cols-3 gap-1 rounded-[3px] border border-white/[0.07] bg-black/20 p-1">
+                    <span className="mb-1.5 block text-[11px] uppercase tracking-[0.12em] text-ink-mute">Provider Profile</span>
+                    <div className="grid grid-cols-3 gap-1 rounded-[3px] border border-line-subtle bg-fill-soft p-1">
                       {([
                         ["openai", "OpenAI Compatible"],
                         ["anthropic", "Anthropic Compatible"],
@@ -628,23 +628,23 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
                           className={cn(
                             "rounded-[2px] px-3 py-2 text-xs font-medium transition-colors",
                             activeProvider === format
-                              ? "bg-[oklch(0.72_0.16_260_/_0.22)] text-[oklch(0.78_0.14_260)]"
-                              : "text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300"
+                              ? "bg-accent-deep/22 text-accent"
+                              : "text-ink-mute hover:bg-fill-soft hover:text-ink-soft"
                           )}
                         >
                           {label}
                         </button>
                       ))}
                     </div>
-                    <div className="mt-2 flex items-center justify-between rounded-[3px] border border-white/[0.07] bg-black/20 px-3 py-2">
-                      <span className="text-xs text-zinc-400">Default provider</span>
+                    <div className="mt-2 flex items-center justify-between rounded-[3px] border border-line-subtle bg-fill-soft px-3 py-2">
+                      <span className="text-xs text-ink-soft">Default provider</span>
                       <button
                         type="button"
                         className={cn(
                           "rounded-[3px] border px-2 py-1 text-[10px] uppercase tracking-[0.12em]",
                           kairoSettings.defaultProvider === activeProvider
-                            ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-300"
-                            : "border-white/[0.1] text-zinc-400 hover:text-zinc-200"
+                            ? "border-success/30 bg-success-muted text-success"
+                            : "border-line text-ink-soft hover:text-ink"
                         )}
                         onClick={() => setKairoSettings((prev) => ({ ...prev, defaultProvider: activeProvider }))}
                       >
@@ -654,7 +654,7 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
                   </div>
 
                   <label className="block md:col-span-2">
-                    <span className="mb-1.5 block text-[11px] uppercase tracking-[0.12em] text-zinc-500">
+                    <span className="mb-1.5 block text-[11px] uppercase tracking-[0.12em] text-ink-mute">
                       API Key
                     </span>
                     <input
@@ -681,13 +681,13 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
                         }))
                       }
                       placeholder="Paste your provider key"
-                      className="w-full rounded-[3px] border bg-black/20 px-3 py-2.5 text-sm text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-[oklch(0.78_0.14_260_/_0.45)]"
-                      style={{ borderColor: "rgba(255,255,255,.09)" }}
+                      className="w-full rounded-[3px] border bg-fill-soft px-3 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-ink-dim focus:border-accent/45"
+                      style={{ borderColor: "var(--color-border-default)" }}
                     />
                   </label>
 
                   <label className="block">
-                    <span className="mb-1.5 block text-[11px] uppercase tracking-[0.12em] text-zinc-500">
+                    <span className="mb-1.5 block text-[11px] uppercase tracking-[0.12em] text-ink-mute">
                       Endpoint URL
                     </span>
                     <input
@@ -720,13 +720,13 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
                             ? "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
                           : "https://your-server/v1/chat/completions"
                       }
-                      className="w-full rounded-[3px] border bg-black/20 px-3 py-2.5 text-sm text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-[oklch(0.78_0.14_260_/_0.45)]"
-                      style={{ borderColor: "rgba(255,255,255,.09)" }}
+                      className="w-full rounded-[3px] border bg-fill-soft px-3 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-ink-dim focus:border-accent/45"
+                      style={{ borderColor: "var(--color-border-default)" }}
                     />
                   </label>
 
                   <label className="block">
-                    <span className="mb-1.5 block text-[11px] uppercase tracking-[0.12em] text-zinc-500">
+                    <span className="mb-1.5 block text-[11px] uppercase tracking-[0.12em] text-ink-mute">
                       Model
                     </span>
                     <input
@@ -753,13 +753,13 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
                         }))
                       }
                       placeholder="Enter the exact model id"
-                      className="w-full rounded-[3px] border bg-black/20 px-3 py-2.5 text-sm text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-[oklch(0.78_0.14_260_/_0.45)]"
-                      style={{ borderColor: "rgba(255,255,255,.09)" }}
+                      className="w-full rounded-[3px] border bg-fill-soft px-3 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-ink-dim focus:border-accent/45"
+                      style={{ borderColor: "var(--color-border-default)" }}
                     />
                   </label>
                 </div>
 
-                <p className="text-xs text-zinc-500 leading-5">
+                <p className="text-xs text-ink-mute leading-5">
                   {activeProvider === "anthropic"
                     ? "Anthropic mode sends /v1/messages-style JSON with a top-level system prompt."
                     : activeProvider === "gemini"
@@ -772,7 +772,7 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
                   <Button
                     onClick={handleSaveKairoConfig}
                     size="sm"
-                    className="rounded-[3px] !bg-[oklch(0.78_0.14_260)] !text-[#0a0a0b] hover:!bg-[oklch(0.82_0.13_260)]"
+                    className="rounded-[3px] !bg-accent !text-[var(--color-bg-base)] hover:!bg-[oklch(0.82_0.13_260)]"
                   >
                     {isKairoDirty || !hasSavedKairoConfig ? "Save Agent Settings" : "Settings Current"}
                   </Button>
@@ -780,7 +780,7 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
                     onClick={handleClearKairoConfig}
                     variant="ghost"
                     size="sm"
-                    className="rounded-[3px] border border-white/10 hover:bg-white/5"
+                    className="rounded-[3px] border border-line hover:bg-fill-soft"
                   >
                     Clear
                   </Button>
@@ -792,7 +792,7 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
               <h3
                 className={cn(
                   "text-[11px] font-medium uppercase tracking-[0.08em] mb-3",
-                  "text-zinc-500"
+                  "text-ink-mute"
                 )}
               >
                 Account
@@ -801,22 +801,22 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
               <div
                 className={cn(
                   "rounded-[4px] p-4 space-y-4 border",
-                  "bg-white/[0.03]"
+                  "bg-fill-faint"
                 )}
-                style={{ borderColor: "rgba(255,255,255,.07)" }}
+                style={{ borderColor: "var(--color-border-subtle)" }}
               >
                 <div>
-                  <p className="text-zinc-100 font-medium">
+                  <p className="text-ink font-medium">
                     {currentUser?.email ?? currentUser?.name ?? "Signed in"}
                   </p>
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-ink-mute">
                     This is your only app login. Google sync permissions are managed below.
                   </p>
                 </div>
                 <Button
                   onClick={() => void handleSignOut()}
                   variant="ghost"
-                  className="w-full items-center justify-center gap-2 rounded-[3px] border border-red-400/15 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                  className="w-full items-center justify-center gap-2 rounded-[3px] border border-error/25 text-error hover:bg-error-muted hover:text-error"
                   disabled={signingOut}
                 >
                   <LogOut size={14} className="shrink-0 text-current" />
@@ -832,7 +832,7 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
             <section>
               <h3 className={cn(
                 "text-[11px] font-medium uppercase tracking-[0.08em] mb-3",
-                "text-zinc-500 flex items-center gap-2"
+                "text-ink-mute flex items-center gap-2"
               )}>
                 <Calendar size={14} />
                 Integrations
@@ -840,25 +840,25 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
 
               <div className={cn(
                 "rounded-[4px] p-4 space-y-4 border",
-                "bg-white/[0.03]"
-              )} style={{ borderColor: "rgba(255,255,255,.07)" }}>
+                "bg-fill-faint"
+              )} style={{ borderColor: "var(--color-border-subtle)" }}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div
                       className={cn(
                         "grid h-9 w-9 place-items-center rounded-[3px]",
-                        googleConnected ? "bg-emerald-500/15" : "bg-white/[0.04]"
+                        googleConnected ? "bg-success/15" : "bg-fill-soft"
                       )}
                     >
                       {googleConnected ? (
-                        <CheckCircle size={20} className="text-emerald-400" />
+                        <CheckCircle size={20} className="text-success" />
                       ) : (
-                        <XCircle size={20} className="text-zinc-500" />
+                        <XCircle size={20} className="text-ink-mute" />
                       )}
                     </div>
                     <div>
-                      <p className="text-zinc-100 font-medium">Google Sync Permissions</p>
-                      <p className="text-xs text-zinc-500">
+                      <p className="text-ink font-medium">Google Sync Permissions</p>
+                      <p className="text-xs text-ink-mute">
                         {googleConnected
                           ? `Granted${googleAccountEmail ? ` for ${googleAccountEmail}` : ""}`
                           : "Not granted"}
@@ -871,7 +871,7 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
                       onClick={handleGoogleDisconnect}
                       variant="ghost"
                       size="sm"
-                      className="rounded-[3px] border border-red-400/15 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                      className="rounded-[3px] border border-error/25 text-error hover:bg-error-muted hover:text-error"
                     >
                       Revoke
                     </Button>
@@ -880,7 +880,7 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
                       onClick={handleGoogleConnect}
                       variant="primary"
                       size="sm"
-                      className="flex items-center gap-2 rounded-[3px] !bg-[oklch(0.78_0.14_260)] !text-[#0a0a0b] hover:!bg-[oklch(0.82_0.13_260)]"
+                      className="flex items-center gap-2 rounded-[3px] !bg-accent !text-[var(--color-bg-base)] hover:!bg-[oklch(0.82_0.13_260)]"
                     >
                       Grant Access
                       <ExternalLink size={14} />
@@ -897,13 +897,13 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
                       transition={T_FAST}
                       className="space-y-4 overflow-hidden"
                     >
-                      <div className="border-t border-zinc-700/50 pt-4">
+                      <div className="border-t border-line pt-4">
                         <label className="flex items-center justify-between cursor-pointer">
                           <div className="flex items-center gap-3">
-                            <Calendar size={18} className="text-zinc-400" />
+                            <Calendar size={18} className="text-ink-soft" />
                             <div>
-                              <p className="text-zinc-100 text-sm">Google Calendar</p>
-                              <p className="text-xs text-zinc-500">
+                              <p className="text-ink text-sm">Google Calendar</p>
+                              <p className="text-xs text-ink-mute">
                                 Sync deadlines with calendar events
                               </p>
                             </div>
@@ -913,8 +913,8 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
                             className="w-11 h-6 rounded-full"
                             style={{
                               backgroundColor: calendarEnabled
-                                ? "oklch(0.78 0.14 260)"
-                                : "rgba(255,255,255,0.08)",
+                                ? "var(--color-accent-primary)"
+                                : "var(--color-border-default)",
                               transition:
                                 "background-color var(--dur-fast) var(--ease-out-expo)",
                             }}
@@ -922,36 +922,36 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
                             <motion.div
                               animate={{ x: calendarEnabled ? 22 : 4 }}
                               transition={T_FAST}
-                              className="w-4 h-4 bg-white rounded-full shadow-sm"
+                              className="w-4 h-4 bg-[var(--color-bg-floating)] rounded-full shadow-sm"
                             />
                           </button>
                         </label>
                       </div>
 
                       {calendarEnabled && (
-                        <div className="border-t border-zinc-700/50 pt-4 space-y-2">
+                        <div className="border-t border-line pt-4 space-y-2">
                           <div className="flex items-center justify-between">
-                            <p className="text-xs uppercase tracking-[0.08em] text-zinc-500">
+                            <p className="text-xs uppercase tracking-[0.08em] text-ink-mute">
                               Calendars To Sync
                             </p>
-                            <span className="text-xs text-zinc-400">
+                            <span className="text-xs text-ink-soft">
                               {selectedCalendarIds.length}/{availableCalendars.length || 1}
                             </span>
                           </div>
                           {loadingCalendars ? (
-                            <p className="text-xs text-zinc-500">Loading calendars...</p>
+                            <p className="text-xs text-ink-mute">Loading calendars...</p>
                           ) : (
                             <div className="space-y-1.5 max-h-28 overflow-y-auto pr-1">
                               {availableCalendars.map((calendar) => (
                                 <label
                                   key={calendar.id}
-                                  className="flex items-center gap-2.5 text-xs text-zinc-300 cursor-pointer"
+                                  className="flex items-center gap-2.5 text-xs text-ink-soft cursor-pointer"
                                 >
                                   <input
                                     type="checkbox"
                                     checked={selectedCalendarIds.includes(calendar.id)}
                                     onChange={() => toggleCalendarSelection(calendar.id)}
-                                    className="accent-amber-500"
+                                    className="accent-warning"
                                   />
                                   <span className="truncate">
                                     {calendar.summary}
@@ -964,13 +964,13 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
                         </div>
                       )}
 
-                      <div className="border-t border-zinc-700/50 pt-4">
+                      <div className="border-t border-line pt-4">
                         <label className="flex items-center justify-between cursor-pointer">
                           <div className="flex items-center gap-3">
-                            <Mail size={18} className="text-zinc-400" />
+                            <Mail size={18} className="text-ink-soft" />
                             <div>
-                              <p className="text-zinc-100 text-sm">Gmail</p>
-                              <p className="text-xs text-zinc-500">
+                              <p className="text-ink text-sm">Gmail</p>
+                              <p className="text-xs text-ink-mute">
                                 Extract tasks from unread emails
                               </p>
                             </div>
@@ -980,8 +980,8 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
                             className="w-11 h-6 rounded-full"
                             style={{
                               backgroundColor: gmailEnabled
-                                ? "oklch(0.78 0.14 260)"
-                                : "rgba(255,255,255,0.08)",
+                                ? "var(--color-accent-primary)"
+                                : "var(--color-border-default)",
                               transition:
                                 "background-color var(--dur-fast) var(--ease-out-expo)",
                             }}
@@ -989,7 +989,7 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
                             <motion.div
                               animate={{ x: gmailEnabled ? 22 : 4 }}
                               transition={T_FAST}
-                              className="w-4 h-4 bg-white rounded-full shadow-sm"
+                              className="w-4 h-4 bg-[var(--color-bg-floating)] rounded-full shadow-sm"
                             />
                           </button>
                         </label>
@@ -1010,7 +1010,7 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
                                   syncing || (calendarEnabled && selectedCalendarIds.length === 0)
                                 }
                                 variant="secondary"
-                                className="w-full rounded-[3px] flex items-center justify-center gap-2 border-white/10 bg-white/[0.04] hover:bg-white/[0.08]"
+                                className="w-full rounded-[3px] flex items-center justify-center gap-2 border-line bg-fill-soft hover:bg-fill-soft"
                               >
                                 <RefreshCw
                                   size={16}
@@ -1024,7 +1024,7 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
                                   syncing || (calendarEnabled && selectedCalendarIds.length === 0)
                                 }
                                 variant="ghost"
-                                className="w-full rounded-[3px] flex items-center justify-center gap-2 border border-white/10 text-amber-300 hover:bg-white/5 hover:text-amber-200"
+                                className="w-full rounded-[3px] flex items-center justify-center gap-2 border border-line text-warning hover:bg-fill-soft hover:text-warning"
                               >
                                 Full Resync
                               </Button>
@@ -1033,26 +1033,26 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
                         )}
                       </AnimatePresence>
 
-                      <div className="border-t border-zinc-700/50 pt-4 space-y-2">
+                      <div className="border-t border-line pt-4 space-y-2">
                         <div className="flex items-center justify-between">
-                          <p className="text-xs uppercase tracking-[0.08em] text-zinc-500">
+                          <p className="text-xs uppercase tracking-[0.08em] text-ink-mute">
                             Your Task Review Queue
                           </p>
-                          <span className="text-xs text-zinc-400">
+                          <span className="text-xs text-ink-soft">
                             {safePendingReviewItems.length} pending
                           </span>
                         </div>
-                        <p className="text-xs text-zinc-500">
+                        <p className="text-xs text-ink-mute">
                           Gmail suggestions wait here for your approval. Items become tasks only
                           after you approve.
                         </p>
-                        <p className="text-xs text-zinc-500">
+                        <p className="text-xs text-ink-mute">
                           Detected deadlines are shown below each item. You can optionally choose
                           a schedule date before approving.
                         </p>
 
                         {safePendingReviewItems.length === 0 ? (
-                          <p className="text-xs text-zinc-600">
+                          <p className="text-xs text-ink-dim">
                             No pending approvals
                           </p>
                         ) : (
@@ -1062,11 +1062,11 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
                               return (
                                 <div
                                   key={item._id}
-                                  className="rounded-[4px] border border-zinc-700/60 bg-zinc-800/60 p-2.5"
+                                  className="rounded-[4px] border border-line bg-fill-soft p-2.5"
                                 >
-                                  <p className="text-sm text-zinc-100 leading-snug">{item.title}</p>
+                                  <p className="text-sm text-ink leading-snug">{item.title}</p>
                                   {item.description && (
-                                    <p className="text-xs text-zinc-500 mt-1 line-clamp-2">
+                                    <p className="text-xs text-ink-mute mt-1 line-clamp-2">
                                       {item.description}
                                     </p>
                                   )}
@@ -1075,24 +1075,24 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
                                       className={cn(
                                         "px-1.5 py-0.5 rounded-full",
                                         item.deadline
-                                          ? "bg-yellow-500/20 text-yellow-300"
-                                          : "bg-amber-500/20 text-amber-300"
+                                          ? "bg-warning-muted text-warning"
+                                          : "bg-warning-muted text-warning"
                                       )}
                                     >
                                       {item.deadline ? "Deadline task" : "Open task"}
                                     </span>
-                                    <span className="px-1.5 py-0.5 rounded-full bg-zinc-700/60 text-zinc-300">
+                                    <span className="px-1.5 py-0.5 rounded-full bg-fill-strong text-ink-soft">
                                       {item.deadline
                                         ? `Detected deadline: ${item.deadline}`
                                         : "No deadline detected"}
                                     </span>
                                     {item.estimatedMinutes && (
-                                      <span className="px-1.5 py-0.5 rounded-full bg-zinc-700/60 text-zinc-300">
+                                      <span className="px-1.5 py-0.5 rounded-full bg-fill-strong text-ink-soft">
                                         {item.estimatedMinutes} min
                                       </span>
                                     )}
                                     {reviewPayload?.from && (
-                                      <span className="px-1.5 py-0.5 rounded-full bg-zinc-700/60 text-zinc-300">
+                                      <span className="px-1.5 py-0.5 rounded-full bg-fill-strong text-ink-soft">
                                         From: {reviewPayload.from}
                                       </span>
                                     )}
@@ -1100,7 +1100,7 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
                                   <div className="mt-2">
                                     <label
                                       htmlFor={`schedule-${item._id}`}
-                                      className="block text-[10px] uppercase tracking-[0.08em] text-zinc-500 mb-1"
+                                      className="block text-[10px] uppercase tracking-[0.08em] text-ink-mute mb-1"
                                     >
                                       Schedule date on approve (optional)
                                     </label>
@@ -1116,9 +1116,9 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
                                       }
                                       className={cn(
                                         "w-full px-2 py-1.5 text-xs rounded-[3px]",
-                                        "bg-zinc-900/70 text-zinc-100",
-                                        "border border-zinc-700/60",
-                                        "focus:outline-none focus:border-amber-500/60"
+                                        "bg-fresh/80 text-ink",
+                                        "border border-line",
+                                        "focus:outline-none focus:border-warning/50"
                                       )}
                                     />
                                   </div>
@@ -1137,7 +1137,7 @@ export function Settings({ onClose, tasks = [] }: SettingsProps) {
                                       size="sm"
                                       variant="ghost"
                                       disabled={activeReviewActionId === item._id}
-                                      className="flex-1 text-red-400 hover:text-red-400"
+                                      className="flex-1 text-error hover:text-error"
                                     >
                                       Reject
                                     </Button>

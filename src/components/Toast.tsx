@@ -58,15 +58,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
 function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }) {
   const icons = {
-    success: <CheckCircle size={18} className="text-emerald-400" />,
-    error: <AlertCircle size={18} className="text-red-400" />,
-    info: <Info size={18} className="text-blue-400" />,
-  };
-
-  const borderColors = {
-    success: "#34D399",
-    error: "#F87171",
-    info: "#0075de",
+    success: <CheckCircle size={18} className="text-success" />,
+    error: <AlertCircle size={18} className="text-error" />,
+    info: <Info size={18} className="text-accent" />,
   };
 
   const enter = useMotion(T_BASE);
@@ -78,26 +72,24 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }) {
       animate={{ opacity: 1, x: 0, scale: 1, transition: enter }}
       exit={{ opacity: 0, x: 24, scale: 0.985, transition: exit }}
       className={cn(
-        "flex items-center gap-3 p-4 rounded-xl",
-        "bg-zinc-900/95 backdrop-blur-md",
-        "border border-white/10",
-        "shadow-xl shadow-black/35"
+        "flex items-center gap-3 p-4 rounded-[16px]",
+        "bg-fresh",
+        "border border-line",
+        "shadow-lg"
       )}
       style={{
-        borderLeftWidth: 3,
-        borderLeftColor: borderColors[toast.type],
         willChange: "transform, opacity",
       }}
     >
       {icons[toast.type]}
-      <p className="flex-1 text-sm text-zinc-100">{toast.message}</p>
+      <p className="flex-1 text-sm text-ink">{toast.message}</p>
       {toast.action && (
         <button
           type="button"
           onClick={() => {
             void Promise.resolve(toast.action?.run()).finally(onClose);
           }}
-          className="rounded-[4px] px-2 py-1 text-xs font-medium text-[oklch(0.78_0.14_260)] hover:bg-white/[0.06]"
+          className="rounded-[4px] px-2 py-1 text-xs font-medium text-accent hover:bg-fill-soft"
         >
           {toast.action.label}
         </button>
@@ -107,8 +99,8 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }) {
         aria-label="Dismiss notification"
         className={cn(
           "p-1 rounded-lg",
-          "text-zinc-400 hover:text-zinc-100",
-          "hover:bg-zinc-800"
+          "text-ink-soft hover:text-ink",
+          "hover:bg-fill-soft"
         )}
         style={{ transition: "color var(--dur-instant) var(--ease-out-expo), background-color var(--dur-instant) var(--ease-out-expo)" }}
       >

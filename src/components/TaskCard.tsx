@@ -45,20 +45,15 @@ function TaskCardComponent({ task, onClick, isDragOverlay }: TaskCardProps) {
     !isCompleted &&
     daysBetween(today, taskDeadline) <= DUE_SOON_DAYS;
 
-  // Determine the accent color based on status
-  const getAccentColor = () => {
-    if (isCompleted) return "#34D399"; // emerald
-    if (isOverdue) return "#F87171"; // red
-    if (isDueSoon) return "#FBBF24"; // amber/warning
-    return "#0075de";
-  };
-
-  const getAccentGlow = () => {
-    if (isCompleted) return "rgba(52, 211, 153, 0.3)";
-    if (isOverdue) return "rgba(248, 113, 113, 0.3)";
-    if (isDueSoon) return "rgba(251, 191, 36, 0.3)";
-    return "rgba(232, 169, 69, 0.2)";
-  };
+  // Semantic state colors (fixed meanings per the design system; every color
+  // state is also carried by the icon shape, never color alone).
+  const statusColor = isCompleted
+    ? "var(--color-success)"
+    : isOverdue
+      ? "var(--color-error)"
+      : isDueSoon
+        ? "var(--color-warning)"
+        : "var(--color-ink-dim)";
 
   return (
     <motion.div
@@ -74,44 +69,42 @@ function TaskCardComponent({ task, onClick, isDragOverlay }: TaskCardProps) {
       animate={{ opacity: isDragging ? 0.4 : 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       whileHover={isDragOverlay ? undefined : {
-        y: -3,
+        y: -2,
         transition: TRANSITION_FAST
       }}
       className={cn(
-        "group relative rounded-xl cursor-grab active:cursor-grabbing",
+        "group relative rounded-[10px] cursor-grab active:cursor-grabbing",
         "transition-shadow duration-200 select-none overflow-hidden",
-        "bg-[#252525]",
-        "hover:bg-[#2c2c2c]",
+        "bg-[var(--color-bg-elevated)] border border-line-subtle",
+        "hover:border-line",
         // Completed state
-        isCompleted && "opacity-50 hover:opacity-60",
+        isCompleted && "opacity-55 hover:opacity-70",
         // Drag overlay state
         isDragOverlay && "rotate-2 scale-105",
       )}
       style={{
         ...style,
         boxShadow: isDragOverlay
-          ? `0 20px 40px rgba(0,0,0,0.4), 0 0 0 1px ${getAccentColor()}40`
-          : `0 1px 2px rgba(0,0,0,0.04), 0 6px 18px rgba(0,0,0,0.06)`,
+          ? "0 20px 40px rgba(39, 30, 22, 0.22), 0 0 0 1px var(--color-border-focus)"
+          : "var(--shadow-sm)",
       }}
     >
-      {/* Left accent bar */}
-      <div
-        className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl"
-        style={{
-          backgroundColor: getAccentColor(),
-          boxShadow: `0 0 8px ${getAccentGlow()}`,
-        }}
-      />
-
-      <div className="flex items-start gap-2.5 px-3 py-2.5 pl-4">
+      <div className="flex items-start gap-2.5 px-3 py-2.5">
         {/* Status indicator */}
         <div
           className={cn(
             "mt-0.5 flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center",
           )}
           style={{
-            backgroundColor: `${getAccentColor()}20`,
-            color: getAccentColor(),
+            backgroundColor:
+              isCompleted
+                ? "var(--color-success-muted)"
+                : isOverdue
+                  ? "var(--color-error-muted)"
+                  : isDueSoon
+                    ? "var(--color-warning-muted)"
+                    : "var(--color-fill-soft)",
+            color: statusColor,
             transition:
               "background-color var(--dur-instant) var(--ease-out-expo), color var(--dur-instant) var(--ease-out-expo)",
           }}
@@ -125,7 +118,7 @@ function TaskCardComponent({ task, onClick, isDragOverlay }: TaskCardProps) {
           ) : (
             <div
               className="w-1.5 h-1.5 rounded-full"
-              style={{ backgroundColor: getAccentColor() }}
+              style={{ backgroundColor: "var(--color-ink-dim)" }}
             />
           )}
         </div>
@@ -135,8 +128,8 @@ function TaskCardComponent({ task, onClick, isDragOverlay }: TaskCardProps) {
           className={cn(
             "text-[13px] leading-snug font-medium",
             isCompleted
-              ? "line-through text-zinc-500"
-              : "text-zinc-100",
+              ? "line-through text-ink-dim"
+              : "text-ink",
           )}
           >
             {task.title}
@@ -147,10 +140,10 @@ function TaskCardComponent({ task, onClick, isDragOverlay }: TaskCardProps) {
               className="text-[11px] mt-1 font-medium"
               style={{
                 color: isOverdue
-                  ? "#F87171"
+                  ? "var(--color-error)"
                   : isDueSoon
-                    ? "#FBBF24"
-                    : "#a1a1aa"
+                    ? "var(--color-warning)"
+                    : "var(--color-ink-mute)"
               }}
             >
               {formatDeadline(taskDeadline, today)}
@@ -158,28 +151,20 @@ function TaskCardComponent({ task, onClick, isDragOverlay }: TaskCardProps) {
           )}
 
           {task.priority && !isCompleted && (
-            <div className="mt-1 inline-flex rounded-full border border-white/15 bg-zinc-900 px-2 py-0.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-300">
+            <div className="mt-1 inline-flex rounded-full border border-line-subtle bg-fill-soft px-2 py-0.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-soft">
                 {task.priority.toUpperCase()}
               </span>
             </div>
           )}
 
           {task.estimatedMinutes && !isCompleted && (
-            <p className="text-[11px] mt-0.5 text-zinc-400">
+            <p className="text-[11px] mt-0.5 text-ink-mute">
               {task.estimatedMinutes}m
             </p>
           )}
         </div>
       </div>
-
-      {/* Hover glow effect */}
-      <div
-        className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-        style={{
-          boxShadow: `inset 0 0 20px ${getAccentGlow()}`,
-        }}
-      />
     </motion.div>
   );
 }

@@ -20,36 +20,35 @@ export function Button({
   const baseStyles = cn(
     "relative inline-flex items-center justify-center rounded-[6px] font-medium",
     "disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas",
     "tracking-[0.01em]"
   );
 
-  // Accent: oklch(0.78 0.14 260). All variants converge on this color so the
-  // app reads as one design language rather than Tailwind defaults.
+  // Quiet Indigo #6753c7 carries primary actions; everything else stays on
+  // warm paper layers so the accent marks the one dominant action.
   const variants = {
     primary: cn(
-      "text-zinc-950",
-      "hover:brightness-110",
-      "shadow-[0_1px_0_0_rgba(255,255,255,0.08)_inset,0_8px_20px_-8px_oklch(0.78_0.14_260/0.6)]",
-      "focus-visible:ring-[oklch(0.78_0.14_260/0.55)]",
-      "[background-color:oklch(0.78_0.14_260)]"
+      "text-canvas bg-accent",
+      "hover:bg-accent-deep",
+      "shadow-[0_1px_2px_rgba(44,33,24,0.12)]",
+      "focus-visible:ring-accent/45"
     ),
     secondary: cn(
-      "text-zinc-100",
-      "border border-white/[0.09]",
-      "bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/[0.14]",
-      "focus-visible:ring-white/30"
+      "text-ink",
+      "border border-line",
+      "bg-fill-faint hover:bg-fill-soft hover:border-line-strong",
+      "focus-visible:ring-accent/40"
     ),
     danger: cn(
-      "text-red-300",
-      "border border-red-400/25",
-      "bg-red-500/[0.08] hover:bg-red-500/[0.16] hover:border-red-400/40",
-      "focus-visible:ring-red-400/40"
+      "text-error",
+      "border border-error/30",
+      "bg-error-muted hover:bg-error/20 hover:border-error/40",
+      "focus-visible:ring-error/40"
     ),
     ghost: cn(
-      "bg-transparent text-zinc-400",
-      "hover:bg-white/[0.04] hover:text-zinc-100",
-      "focus-visible:ring-white/20"
+      "bg-transparent text-ink-soft",
+      "hover:bg-fill-soft hover:text-ink",
+      "focus-visible:ring-accent/40"
     ),
   };
 

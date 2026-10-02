@@ -4,40 +4,71 @@
   --font-sans: "Geist Variable", "Geist", "Inter", system-ui, -apple-system, sans-serif;
   --font-display: "Geist Variable", "Geist", system-ui, sans-serif;
   --font-mono: "Geist Mono Variable", "Geist Mono", ui-monospace, monospace;
+
+  /* Warm Planning Desk palette — mirrors apps/mobile/src/theme/tokens.ts.
+     These power Tailwind utilities: bg-canvas, text-ink, border-line, ... */
+  --color-canvas: #f7f1e8;
+  --color-paper: #fbf7ef;
+  --color-sheet: #fffaf2;
+  --color-fresh: #fffdf7;
+  --color-ink: #201914;
+  --color-ink-soft: #5b5048;
+  --color-ink-mute: #6f6358;
+  --color-ink-dim: #76695e;
+  --color-accent: #6753c7;
+  --color-accent-deep: #5844b8;
+  --color-success: #226b4b;
+  --color-warning: #805712;
+  --color-deadline: #98502d;
+  --color-error: #a43f32;
+  --color-priority-1: #934536;
+  --color-priority-2: #805712;
+  --color-priority-3: #5e6662;
+  --color-fill-faint: rgba(74, 54, 35, 0.035);
+  --color-fill-soft: rgba(74, 54, 35, 0.05);
+  --color-fill-strong: rgba(74, 54, 35, 0.09);
+  --color-line-subtle: rgba(78, 62, 43, 0.09);
+  --color-line: rgba(78, 62, 43, 0.18);
+  --color-line-strong: rgba(78, 62, 43, 0.28);
 }
 
 :root {
-  --color-bg-base: #0a0a0b;
-  --color-bg-surface: #101013;
-  --color-bg-elevated: #17171b;
-  --color-bg-floating: #1c1c20;
-  --color-bg-overlay: rgba(0, 0, 0, 0.6);
+  --color-bg-base: #f7f1e8;
+  --color-bg-surface: #fbf7ef;
+  --color-bg-elevated: #fffaf2;
+  --color-bg-floating: #fffdf7;
+  --color-bg-overlay: rgba(39, 30, 22, 0.32);
 
-  --color-text-primary: #ededef;
-  --color-text-secondary: #c2c2c8;
-  --color-text-muted: #6b6b72;
-  --color-text-dim: #45454a;
-  --color-text-inverse: #0a0a0b;
+  --color-text-primary: #201914;
+  --color-text-secondary: #5b5048;
+  --color-text-muted: #6f6358;
+  --color-text-dim: #76695e;
+  --color-text-inverse: #fffaf2;
 
-  --color-accent-primary: oklch(0.78 0.14 260);
-  --color-accent-primary-hover: oklch(0.72 0.16 260);
-  --color-accent-primary-muted: oklch(0.72 0.16 260 / 0.2);
-  --color-accent-glow: oklch(0.78 0.14 260 / 0.35);
-  --color-accent-dim: oklch(0.72 0.16 260 / 0.08);
+  --color-accent-primary: #6753c7;
+  --color-accent-primary-hover: #5844b8;
+  --color-accent-primary-muted: rgba(103, 83, 199, 0.16);
+  --color-accent-glow: rgba(103, 83, 199, 0.28);
+  --color-accent-dim: rgba(103, 83, 199, 0.07);
 
-  --color-success: oklch(0.78 0.18 150);
-  --color-success-muted: oklch(0.78 0.18 150 / 0.18);
-  --color-warning: oklch(0.78 0.15 60);
-  --color-warning-muted: oklch(0.78 0.15 60 / 0.18);
-  --color-deadline: oklch(0.72 0.16 30);
-  --color-deadline-muted: oklch(0.72 0.16 30 / 0.22);
-  --color-error: oklch(0.72 0.2 25);
-  --color-error-muted: oklch(0.72 0.2 25 / 0.18);
+  --color-success: #226b4b;
+  --color-success-muted: rgba(34, 107, 75, 0.14);
+  --color-warning: #805712;
+  --color-warning-muted: rgba(128, 87, 18, 0.14);
+  --color-deadline: #98502d;
+  --color-deadline-muted: rgba(152, 80, 45, 0.16);
+  --color-error: #a43f32;
+  --color-error-muted: rgba(164, 63, 50, 0.13);
 
-  --color-border-subtle: rgba(255, 255, 255, 0.07);
-  --color-border-default: rgba(255, 255, 255, 0.13);
-  --color-border-focus: oklch(0.78 0.14 260 / 0.45);
-  --color-card-bg: rgba(255, 255, 255, 0.025);
+  --color-border-subtle: rgba(78, 62, 43, 0.09);
+  --color-border-default: rgba(78, 62, 43, 0.18);
+  --color-border-focus: rgba(103, 83, 199, 0.45);
+  --color-border-strong: rgba(78, 62, 43, 0.28);
+  --color-card-bg: #fffaf2;
+
+  --color-fill-faint: rgba(74, 54, 35, 0.035);
+  --color-fill-soft: rgba(74, 54, 35, 0.05);
+  --color-fill-strong: rgba(74, 54, 35, 0.09);
 
   --space-1: 4px;
   --space-2: 8px;
@@ -62,11 +93,11 @@
   --radius-xl: 16px;
   --radius-full: 9999px;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.15);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.25);
-  --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.4);
-  --shadow-xl: 0 40px 80px rgba(0, 0, 0, 0.55);
-  --shadow-glow: 0 0 0 2px oklch(0.78 0.14 260 / 0.4);
+  --shadow-sm: 0 1px 2px rgba(44, 33, 24, 0.08);
+  --shadow-md: 0 4px 12px rgba(44, 33, 24, 0.12);
+  --shadow-lg: 0 8px 28px rgba(44, 33, 24, 0.16);
+  --shadow-xl: 0 40px 80px rgba(44, 33, 24, 0.2);
+  --shadow-glow: 0 0 0 2px rgba(103, 83, 199, 0.4);
 
   --z-base: 0;
   --z-sticky: 3;
@@ -83,7 +114,7 @@
   font-family: var(--font-sans);
   line-height: 1.5;
   font-weight: 400;
-  color-scheme: dark;
+  color-scheme: light;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -105,8 +136,8 @@ body::before {
   pointer-events: none;
   z-index: 0;
   background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    linear-gradient(to right, rgba(74, 54, 35, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(74, 54, 35, 0.045) 1px, transparent 1px);
   background-size: 32px 32px;
   mask-image: radial-gradient(ellipse at center, black 30%, transparent 85%);
   -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 85%);
@@ -135,18 +166,18 @@ body::before {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(74, 54, 35, 0.16);
   border-radius: 99px;
   transition: background var(--dur-instant) var(--ease-out-expo);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(74, 54, 35, 0.28);
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  scrollbar-color: rgba(74, 54, 35, 0.16) transparent;
 }
 
 *:focus-visible {
@@ -156,8 +187,8 @@ body::before {
 }
 
 ::selection {
-  background: var(--color-accent-primary-muted);
-  color: #ffffff;
+  background: rgba(103, 83, 199, 0.22);
+  color: var(--color-text-primary);
 }
 
 .tabular {
@@ -167,8 +198,8 @@ body::before {
 kbd {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(74, 54, 35, 0.05);
+  border: 1px solid rgba(78, 62, 43, 0.18);
   border-radius: 4px;
   padding: 1px 5px;
   font-size: 10px;
@@ -197,6 +228,12 @@ textarea {
 
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Landing hero: one orchestrated staggered load, then still. */
+@keyframes heroRise {
+  from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
 }
 

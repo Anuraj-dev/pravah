@@ -19,7 +19,7 @@ function BrandMark({ size = 22 }: { size?: number }) {
       alt=""
       width={size}
       height={size}
-      style={{ borderRadius: 5, objectFit: "cover", filter: "drop-shadow(0 0 6px oklch(0.78 0.14 260 / 0.35))" }}
+      style={{ borderRadius: 5, objectFit: "cover",  }}
     />
   );
 }
@@ -47,11 +47,11 @@ export function TopNavbar({
     <header
       className={cn(
         "flex items-center gap-3 px-[18px] border-b",
-        "bg-[#101013]"
+        "bg-[var(--color-bg-base)]"
       )}
       style={{
         height: 52,
-        borderColor: "rgba(255,255,255,.07)",
+        borderColor: "var(--color-border-subtle)",
         fontSize: 13,
       }}
     >
@@ -60,7 +60,7 @@ export function TopNavbar({
         <BrandMark size={22} />
         <span
           className="font-semibold"
-          style={{ fontSize: 16, letterSpacing: -0.4, color: "#ededef" }}
+          style={{ fontSize: 16, letterSpacing: -0.4, color: "var(--color-text-primary)" }}
         >
           Pravah
         </span>
@@ -70,8 +70,8 @@ export function TopNavbar({
       <div
         className="flex gap-0.5 ml-3 p-[3px] rounded-[6px]"
         style={{
-          background: "rgba(255,255,255,.04)",
-          border: "1px solid rgba(255,255,255,.07)",
+          background: "var(--color-fill-soft)",
+          border: "1px solid var(--color-border-subtle)",
         }}
       >
         <NavTab active={activePage === "timeline"} onClick={() => onNavigate("timeline")}>
@@ -93,7 +93,7 @@ export function TopNavbar({
         style={{
           fontFamily: "var(--font-mono)",
           fontSize: 12,
-          color: "#c2c2c8",
+          color: "var(--color-text-secondary)",
           letterSpacing: 0.6,
         }}
       >
@@ -115,13 +115,13 @@ export function TopNavbar({
               width: 30,
               height: 30,
               background: "transparent",
-              border: "1px solid rgba(255,255,255,.07)",
-              color: "#6b6b72",
+              border: "1px solid var(--color-border-subtle)",
+              color: "var(--color-text-muted)",
               cursor: "pointer",
               transition: tx(["color", "background-color", "border-color"], "instant"),
             }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#ededef"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#6b6b72"; }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text-primary)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text-muted)"; }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3" />
@@ -153,16 +153,16 @@ function NavTab({
         borderRadius: 4,
         border: "none",
         cursor: "pointer",
-        background: active ? "oklch(0.72 0.16 260 / 0.2)" : "transparent",
-        color: active ? "oklch(0.78 0.14 260)" : "#6b6b72",
+        background: active ? "var(--color-accent-primary-muted)" : "transparent",
+        color: active ? "var(--color-accent-primary)" : "var(--color-text-muted)",
         letterSpacing: 0.2,
         transition: tx(["background-color", "color"], "instant"),
       }}
       onMouseEnter={(e) => {
-        if (!active) (e.currentTarget as HTMLButtonElement).style.color = "#ededef";
+        if (!active) (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text-primary)";
       }}
       onMouseLeave={(e) => {
-        if (!active) (e.currentTarget as HTMLButtonElement).style.color = "#6b6b72";
+        if (!active) (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text-muted)";
       }}
     >
       {children}

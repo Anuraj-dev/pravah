@@ -44,16 +44,16 @@ function GridTaskRow({
     daysBetween(today, task.deadline) <= DUE_SOON_DAYS;
 
   const leftBarColor = isCompleted
-    ? "oklch(0.78 0.18 150)"
+    ? "var(--color-success)"
     : isOverdue
-    ? "oklch(0.72 0.2 25)"
+    ? "var(--color-error)"
     : isDueSoon
-    ? "oklch(0.78 0.15 60)"
+    ? "var(--color-warning)"
     : task.deadline
-    ? "oklch(0.72 0.16 30)"
+    ? "var(--color-deadline)"
     : task.priority === "p1"
-    ? "oklch(0.7 0.2 25)"
-    : "oklch(0.78 0.14 260)";
+    ? "var(--color-error)"
+    : "var(--color-accent-primary)";
 
   const isAgentAdded = task.source === "ai-agent";
 
@@ -82,22 +82,22 @@ function GridTaskRow({
         gap: 8,
         minHeight: 34,
         padding: "8px 10px",
-        background: hover ? "rgba(255,255,255,.055)" : "rgba(255,255,255,.025)",
-        borderTop: `1px solid ${hover ? "rgba(255,255,255,.13)" : "rgba(255,255,255,.07)"}`,
-        borderRight: `1px solid ${hover ? "rgba(255,255,255,.13)" : "rgba(255,255,255,.07)"}`,
-        borderBottom: `1px solid ${hover ? "rgba(255,255,255,.13)" : "rgba(255,255,255,.07)"}`,
+        background: hover ? "var(--color-fill-soft)" : "var(--color-fill-faint)",
+        borderTop: `1px solid ${hover ? "var(--color-border-default)" : "var(--color-border-subtle)"}`,
+        borderRight: `1px solid ${hover ? "var(--color-border-default)" : "var(--color-border-subtle)"}`,
+        borderBottom: `1px solid ${hover ? "var(--color-border-default)" : "var(--color-border-subtle)"}`,
         borderLeft: `3px solid ${leftBarColor}`,
         borderRadius: 5,
         fontSize: 12,
         fontFamily: "var(--font-sans)",
         fontWeight: task.deadline ? 500 : 400,
-        color: isCompleted ? "#6b6b72" : "#ededef",
+        color: isCompleted ? "var(--color-text-muted)" : "var(--color-text-primary)",
         textDecoration: isCompleted ? "line-through" : "none",
         cursor: "grab",
         userSelect: "none",
         opacity: isDragging ? 0.4 : 1,
         transform: CSS.Transform.toString(transform) + (hover && !isCompleted ? " translateY(-1px)" : ""),
-        boxShadow: hover ? "0 2px 8px rgba(0,0,0,.3)" : "none",
+        boxShadow: hover ? "0 2px 8px rgba(39, 30, 22, 0.28)" : "none",
         transition: tx(["background-color", "border-top-color", "border-right-color", "border-bottom-color", "box-shadow", "transform"], "instant"),
         animation: justCompleted ? `taskCompleteRow 520ms ${`cubic-bezier(${EASE_OUT_EXPO.join(",")})`} forwards` : undefined,
         willChange: hover ? "transform" : undefined,
@@ -143,9 +143,8 @@ function GridTaskRow({
             position: "absolute",
             inset: "auto 0 0 0",
             height: 1,
-            background: "oklch(0.78 0.18 150)",
-            boxShadow: "0 0 8px oklch(0.78 0.18 150 / 0.55)",
-            animation: `taskCompleteSweep 520ms cubic-bezier(${EASE_OUT_EXPO.join(",")}) forwards`,
+            background: "var(--color-success)",
+                        animation: `taskCompleteSweep 520ms cubic-bezier(${EASE_OUT_EXPO.join(",")}) forwards`,
             pointerEvents: "none",
           }}
         />
@@ -153,7 +152,7 @@ function GridTaskRow({
       <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis" }}>{task.title}</span>
         {task.time && !isCompleted && (
-          <span style={{ display: "block", marginTop: 2, fontSize: 9, color: "#8b8b94", textDecoration: "none" }}>
+          <span style={{ display: "block", marginTop: 2, fontSize: 9, color: "var(--color-text-muted)", textDecoration: "none" }}>
             {formatTaskTime(task.time)}
           </span>
         )}
@@ -163,7 +162,7 @@ function GridTaskRow({
           title={`Goal: ${goalName}`}
           style={{
             fontSize: 9,
-            color: "oklch(0.78 0.14 260 / 0.9)",
+            color: "var(--color-accent-primary)",
             fontFamily: "var(--font-mono)",
             letterSpacing: 0.4,
             maxWidth: 104,
@@ -180,7 +179,7 @@ function GridTaskRow({
           style={{
             fontSize: 9,
             fontFamily: "var(--font-mono)",
-            color: task.priority === "p1" ? "oklch(0.78 0.18 25)" : "#6b6b72",
+            color: task.priority === "p1" ? "var(--color-error)" : "var(--color-text-muted)",
             letterSpacing: 1,
             opacity: 0.85,
           }}
@@ -191,13 +190,13 @@ function GridTaskRow({
       {isAgentAdded && !hover && (
         <span
           title="Added by Kairo"
-          style={{ fontSize: 10, color: "oklch(0.78 0.14 260)", fontFamily: "var(--font-mono)", letterSpacing: 1, opacity: 0.7 }}
+          style={{ fontSize: 10, color: "var(--color-accent-primary)", fontFamily: "var(--font-mono)", letterSpacing: 1, opacity: 0.7 }}
         >
           ✦
         </span>
       )}
       {isOverdue && !hover && (
-        <span style={{ fontSize: 10, color: "oklch(0.72 0.2 25)", fontFamily: "var(--font-mono)" }}>!</span>
+        <span style={{ fontSize: 10, color: "var(--color-error)", fontFamily: "var(--font-mono)" }}>!</span>
       )}
     </motion.div>
   );
@@ -224,18 +223,18 @@ function GridDayColumnComponent({
         position: "relative",
         width: TIMELINE_COL_WIDTH,
         flexShrink: 0,
-        borderRight: "1px solid rgba(255,255,255,.07)",
+        borderRight: "1px solid var(--color-border-subtle)",
         padding: "9px 8px",
         display: "flex",
         flexDirection: "column",
         gap: 5,
         minHeight: 240,
         background: isOver
-          ? "oklch(0.72 0.16 260 / 0.18)"
+          ? "var(--color-accent-primary-muted)"
           : isToday
-          ? "oklch(0.72 0.16 260 / 0.06)"
+          ? "var(--color-accent-dim)"
           : isWeekend
-          ? "rgba(0,0,0,.15)"
+          ? "rgba(39, 30, 22, 0.1)"
           : "transparent",
         transition: tx("background-color", "fast"),
       }}
@@ -250,9 +249,8 @@ function GridDayColumnComponent({
               position: "absolute",
               inset: "0 0 auto 0",
               height: 1,
-              background: "oklch(0.78 0.14 260)",
-              boxShadow: "0 0 12px oklch(0.78 0.14 260 / 0.55)",
-              animation: `dropZoneIn 220ms cubic-bezier(${EASE_OUT_EXPO.join(",")}) forwards`,
+              background: "var(--color-accent-primary)",
+                            animation: `dropZoneIn 220ms cubic-bezier(${EASE_OUT_EXPO.join(",")}) forwards`,
               pointerEvents: "none",
             }}
           />
@@ -262,9 +260,8 @@ function GridDayColumnComponent({
               position: "absolute",
               inset: "auto 0 0 0",
               height: 1,
-              background: "oklch(0.78 0.14 260)",
-              boxShadow: "0 0 12px oklch(0.78 0.14 260 / 0.55)",
-              animation: `dropZoneIn 220ms cubic-bezier(${EASE_OUT_EXPO.join(",")}) forwards`,
+              background: "var(--color-accent-primary)",
+                            animation: `dropZoneIn 220ms cubic-bezier(${EASE_OUT_EXPO.join(",")}) forwards`,
               pointerEvents: "none",
             }}
           />

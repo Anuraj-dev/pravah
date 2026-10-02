@@ -1,6 +1,6 @@
 import type { KairoTaskProposal } from "../lib/kairoTaskProposals";
 
-const ACCENT = "oklch(0.78 0.14 260)";
+const ACCENT = "var(--color-accent-primary)";
 
 interface KairoTaskProposalListProps {
   proposals: KairoTaskProposal[];
@@ -35,11 +35,11 @@ export function KairoTaskProposalList({
             key={`${proposal.title}-${proposal.deadline ?? "inbox"}-${index}`}
             style={{
               padding: "8px 10px",
-              background: "rgba(255,255,255,.03)",
-              border: "1px solid rgba(255,255,255,.07)",
+              background: "var(--color-fill-faint)",
+              border: "1px solid var(--color-border-subtle)",
               borderLeft: `2px solid ${ACCENT}`,
               borderRadius: 3,
-              color: "#c2c2c8",
+              color: "var(--color-text-secondary)",
               fontFamily: "var(--font-mono)",
               fontSize: 12,
             }}
@@ -67,7 +67,7 @@ export function KairoTaskProposalList({
             ) : (
               <div
                 style={{
-                  color: proposal.status === "failed" ? "#f0a0a0" : "#777780",
+                  color: proposal.status === "failed" ? "var(--color-error)" : "var(--color-text-dim)",
                   fontFamily: "var(--font-sans)",
                   fontSize: 11,
                   marginTop: 5,
@@ -86,9 +86,9 @@ export function KairoTaskProposalList({
 function actionButtonStyle(primary: boolean): React.CSSProperties {
   return {
     background: primary ? ACCENT : "transparent",
-    border: primary ? "none" : "1px solid rgba(255,255,255,.14)",
+    border: primary ? "none" : "1px solid var(--color-border-strong)",
     borderRadius: 3,
-    color: primary ? "#0a0a0b" : "#a8a8ae",
+    color: primary ? "var(--color-text-inverse)" : "var(--color-text-secondary)",
     cursor: "pointer",
     fontFamily: "var(--font-sans)",
     fontSize: 11,

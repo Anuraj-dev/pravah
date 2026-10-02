@@ -201,7 +201,7 @@ export function TaskPopup({ task, onClose }: TaskPopupProps) {
 
         {!isTaskCompleted(task) && (
           <div>
-            <p className="mb-2 block text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">
+            <p className="mb-2 block text-[10px] font-medium uppercase tracking-[0.12em] text-ink-mute">
               Quick schedule
             </p>
             <div className="flex flex-wrap gap-1.5">
@@ -210,7 +210,7 @@ export function TaskPopup({ task, onClose }: TaskPopupProps) {
                   key={option.label}
                   type="button"
                   onClick={() => void handleQuickSchedule(option.date, option.label)}
-                  className="rounded-[4px] border border-white/[0.08] bg-white/[0.025] px-2.5 py-1 text-[11px] text-zinc-400 transition-colors hover:border-white/[0.16] hover:bg-white/[0.06] hover:text-zinc-100"
+                  className="rounded-[4px] border border-line bg-fill-faint px-2.5 py-1 text-[11px] text-ink-soft transition-colors hover:border-line-strong hover:bg-fill-soft hover:text-ink"
                 >
                   {option.label}
                 </button>
@@ -220,7 +220,7 @@ export function TaskPopup({ task, onClose }: TaskPopupProps) {
         )}
 
         <div>
-          <p className="block text-[10px] text-zinc-500 uppercase tracking-[0.12em] font-medium mb-2">
+          <p className="block text-[10px] text-ink-mute uppercase tracking-[0.12em] font-medium mb-2">
             Priority
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -239,16 +239,16 @@ export function TaskPopup({ task, onClose }: TaskPopupProps) {
                   className={cn(
                     "px-2.5 py-1 rounded-[4px] text-[11px] border",
                     active
-                      ? "text-zinc-950"
-                      : "text-zinc-400 hover:text-zinc-100"
+                      ? "text-canvas"
+                      : "text-ink-soft hover:text-ink"
                   )}
                   style={{
                     background: active
-                      ? "oklch(0.78 0.14 260)"
-                      : "rgba(255,255,255,0.025)",
+                      ? "var(--color-accent-primary)"
+                      : "var(--color-fill-faint)",
                     borderColor: active
-                      ? "oklch(0.78 0.14 260)"
-                      : "rgba(255,255,255,0.08)",
+                      ? "var(--color-accent-primary)"
+                      : "var(--color-border-default)",
                     transition:
                       "background-color var(--dur-instant) var(--ease-out-expo), color var(--dur-instant) var(--ease-out-expo), border-color var(--dur-instant) var(--ease-out-expo)",
                   }}
@@ -261,18 +261,18 @@ export function TaskPopup({ task, onClose }: TaskPopupProps) {
         </div>
 
         {/* Metadata */}
-        <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.1em] text-zinc-500">
+        <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.1em] text-ink-mute">
           <span
             className="px-1.5 py-0.5 rounded-[3px]"
             style={{
               background:
                 hasDeadline
-                  ? "oklch(0.78 0.16 80 / 0.12)"
-                  : "oklch(0.78 0.14 260 / 0.14)",
+                  ? "var(--color-warning-muted)"
+                  : "var(--color-accent-primary-muted)",
               color:
                 hasDeadline
-                  ? "oklch(0.85 0.14 80)"
-                  : "oklch(0.85 0.12 260)",
+                  ? "var(--color-warning)"
+                  : "var(--color-accent-primary)",
               letterSpacing: "0.08em",
             }}
           >
@@ -291,14 +291,14 @@ export function TaskPopup({ task, onClose }: TaskPopupProps) {
 
         {webGoalsLinkingEnabled && goals && (
           <label className="block">
-            <span className="mb-1.5 block text-[10px] uppercase tracking-[0.12em] text-zinc-500">
+            <span className="mb-1.5 block text-[10px] uppercase tracking-[0.12em] text-ink-mute">
               Linked Goal
             </span>
             <select
               value={selectedGoalId || currentGoalId}
               onChange={(e) => setSelectedGoalId(e.target.value)}
-              className="w-full rounded-[3px] border bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none transition-colors focus:border-[oklch(0.78_0.14_260_/_0.45)]"
-              style={{ borderColor: "rgba(255,255,255,.09)" }}
+              className="w-full rounded-[3px] border bg-fill-soft px-3 py-2 text-sm text-ink outline-none transition-colors focus:border-accent/45"
+              style={{ borderColor: "var(--color-border-default)" }}
               aria-label="Linked Goal"
             >
               <option value="">No goal</option>
@@ -314,7 +314,7 @@ export function TaskPopup({ task, onClose }: TaskPopupProps) {
         {/* Actions */}
         <div className={cn(
           "flex items-center gap-2 pt-4 mt-1",
-          "border-t border-white/[0.06]"
+          "border-t border-line-subtle"
         )}>
           {!confirmingDelete ? (
             <>
@@ -351,7 +351,7 @@ export function TaskPopup({ task, onClose }: TaskPopupProps) {
               <Button
                 onClick={() => setConfirmingDelete(true)}
                 variant="ghost"
-                className="flex items-center gap-1.5 text-zinc-400 hover:text-red-300"
+                className="flex items-center gap-1.5 text-ink-soft hover:text-error"
               >
                 <Trash2 size={14} />
                 Delete
@@ -367,7 +367,7 @@ export function TaskPopup({ task, onClose }: TaskPopupProps) {
             </>
           ) : (
             <>
-              <p className="flex-1 text-sm text-zinc-400">Delete this task?</p>
+              <p className="flex-1 text-sm text-ink-soft">Delete this task?</p>
               <Button
                 onClick={() => setConfirmingDelete(false)}
                 variant="secondary"

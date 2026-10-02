@@ -65,7 +65,7 @@ function InboxTaskComponent({
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [scheduleDate, setScheduleDate] = useState(getLocalDateString());
 
-  const barColor = task.deadline ? "oklch(0.72 0.16 30)" : "oklch(0.78 0.14 260)";
+  const barColor = task.deadline ? "var(--color-deadline)" : "var(--color-accent-primary)";
   const isAgentAdded = task.source === "ai-agent";
   const sourceLabel = task.source ? SOURCE_LABEL[task.source] : null;
   const age = formatTaskAge(task.createdAt);
@@ -87,11 +87,11 @@ function InboxTaskComponent({
         {...listeners}
         style={{
           padding: "7px 10px 7px 14px",
-          background: hover ? "rgba(255,255,255,.04)" : "rgba(255,255,255,.025)",
-          border: `1px solid ${hover ? "rgba(255,255,255,.13)" : "rgba(255,255,255,.07)"}`,
+          background: hover ? "var(--color-fill-soft)" : "var(--color-fill-faint)",
+          border: `1px solid ${hover ? "var(--color-border-default)" : "var(--color-border-subtle)"}`,
           borderRadius: 4,
           fontSize: 12,
-          color: "#ededef",
+          color: "var(--color-text-primary)",
           cursor: isDragging ? "grabbing" : "grab",
           position: "relative",
           transition: tx(["background-color", "border-color", "opacity"], "instant"),
@@ -151,9 +151,9 @@ function InboxTaskComponent({
             width: 16,
             height: 16,
             borderRadius: 4,
-            border: `1px solid ${selected ? "oklch(0.78 0.14 260)" : "rgba(255,255,255,.2)"}`,
-            background: selected ? "oklch(0.78 0.14 260)" : "transparent",
-            color: "#101013",
+            border: `1px solid ${selected ? "var(--color-accent-primary)" : "var(--color-border-strong)"}`,
+            background: selected ? "var(--color-accent-primary)" : "transparent",
+            color: "var(--color-bg-surface)",
             display: "grid",
             placeItems: "center",
             cursor: "pointer",
@@ -184,7 +184,7 @@ function InboxTaskComponent({
             title={`Goal: ${goalName}`}
             style={{
               fontSize: 9,
-              color: "oklch(0.78 0.14 260 / 0.9)",
+              color: "var(--color-accent-primary)",
               fontFamily: "var(--font-mono)",
               letterSpacing: 0.4,
               maxWidth: 92,
@@ -199,7 +199,7 @@ function InboxTaskComponent({
         {isAgentAdded && (
           <span
             title="Added by Kairo"
-            style={{ fontSize: 9, color: "oklch(0.78 0.14 260)", fontFamily: "var(--font-mono)", letterSpacing: 0.6 }}
+            style={{ fontSize: 9, color: "var(--color-accent-primary)", fontFamily: "var(--font-mono)", letterSpacing: 0.6 }}
           >
             ✦
           </span>
@@ -213,18 +213,18 @@ function InboxTaskComponent({
             fontFamily: "var(--font-mono)",
             fontSize: 9,
             letterSpacing: 0.6,
-            color: "#6b6b72",
+            color: "var(--color-text-muted)",
             display: "flex",
             gap: 8,
           }}
         >
           {sourceLabel && (
-            <span style={{ color: isAgentAdded ? "oklch(0.78 0.14 260 / 0.85)" : "#6b6b72" }}>
+            <span style={{ color: isAgentAdded ? "rgba(103, 83, 199, 0.85)" : "var(--color-text-muted)" }}>
               {sourceLabel}
             </span>
           )}
-          {task.time && <span style={{ color: "#8b8b94" }}>{formatTaskTime(task.time)}</span>}
-          {age && <span style={{ color: "#45454a" }}>{age}</span>}
+          {task.time && <span style={{ color: "var(--color-text-muted)" }}>{formatTaskTime(task.time)}</span>}
+          {age && <span style={{ color: "var(--color-text-dim)" }}>{age}</span>}
         </div>
       )}
       {!selectMode && onSchedule && (
@@ -238,7 +238,7 @@ function InboxTaskComponent({
                 onChange={(e) => setScheduleDate(e.target.value)}
                 aria-label={`Schedule ${task.title}`}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="min-w-0 flex-1 rounded-[3px] border border-white/[0.1] bg-black/25 px-1.5 py-1 text-[10px] text-zinc-200 outline-none focus:border-[oklch(0.78_0.14_260_/_0.45)]"
+                className="min-w-0 flex-1 rounded-[3px] border border-line bg-fill-soft px-1.5 py-1 text-[10px] text-ink outline-none focus:border-accent/45"
               />
               <button
                 type="button"
@@ -249,7 +249,7 @@ function InboxTaskComponent({
                   setScheduleOpen(false);
                 }}
                 aria-label={`Confirm schedule for ${task.title}`}
-                className="rounded-[3px] bg-[oklch(0.78_0.14_260_/_0.18)] p-1 text-[oklch(0.78_0.14_260)] hover:bg-[oklch(0.78_0.14_260_/_0.28)]"
+                className="rounded-[3px] bg-accent/18 p-1 text-accent hover:bg-accent/28"
               >
                 <Check size={12} />
               </button>
@@ -261,7 +261,7 @@ function InboxTaskComponent({
                   setScheduleOpen(false);
                 }}
                 aria-label={`Cancel scheduling ${task.title}`}
-                className="rounded-[3px] p-1 text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200"
+                className="rounded-[3px] p-1 text-ink-mute hover:bg-fill-soft hover:text-ink"
               >
                 <X size={12} />
               </button>
@@ -275,7 +275,7 @@ function InboxTaskComponent({
                 setScheduleDate(getLocalDateString());
                 setScheduleOpen(true);
               }}
-              className="inline-flex items-center gap-1 rounded-[3px] border border-white/[0.08] px-1.5 py-1 text-[10px] text-zinc-500 hover:border-white/[0.16] hover:text-zinc-200"
+              className="inline-flex items-center gap-1 rounded-[3px] border border-line px-1.5 py-1 text-[10px] text-ink-mute hover:border-line-strong hover:text-ink"
             >
               <CalendarDays size={11} />
               Schedule
@@ -407,9 +407,9 @@ function InboxSidebarComponent({
         flexDirection: "column",
         height: "100%",
         width: 300,
-        background: isOver ? "oklch(0.72 0.16 260 / 0.1)" : "#101013",
-        borderLeft: "1px solid rgba(255,255,255,.07)",
-        outline: isOver ? "1px dashed oklch(0.78 0.14 260 / 0.5)" : "none",
+        background: isOver ? "rgba(88, 68, 184, 0.1)" : "var(--color-bg-surface)",
+        borderLeft: "1px solid var(--color-border-subtle)",
+        outline: isOver ? "1px dashed var(--color-border-focus)" : "none",
         outlineOffset: -2,
         transition: tx("background-color", "fast"),
       }}
@@ -417,19 +417,19 @@ function InboxSidebarComponent({
       {/* Header */}
       <div
         className="flex items-start gap-2 px-[14px] py-3"
-        style={{ borderBottom: "1px solid rgba(255,255,255,.07)" }}
+        style={{ borderBottom: "1px solid var(--color-border-subtle)" }}
       >
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-2">
-            <span style={{ fontSize: 13, fontWeight: 500, color: "#ededef" }}>Inbox</span>
+            <span style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>Inbox</span>
             <span
               className="tabular"
               style={{
                 fontSize: 11,
                 padding: "1px 7px",
                 borderRadius: 99,
-                background: "oklch(0.72 0.16 260 / 0.2)",
-                color: "oklch(0.78 0.14 260)",
+                background: "var(--color-accent-primary-muted)",
+                color: "var(--color-accent-primary)",
                 fontFamily: "var(--font-mono)",
               }}
             >
@@ -442,7 +442,7 @@ function InboxSidebarComponent({
               style={{
                 fontSize: 9,
                 fontFamily: "var(--font-mono)",
-                color: "#6b6b72",
+                color: "var(--color-text-muted)",
                 letterSpacing: 0.6,
               }}
             >
@@ -455,7 +455,7 @@ function InboxSidebarComponent({
           <button
             type="button"
             onClick={exitSelectMode}
-            className="inline-flex items-center gap-1 rounded-[4px] border border-white/[0.08] px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200"
+            className="inline-flex items-center gap-1 rounded-[4px] border border-line px-2 py-1 text-[10px] text-ink-mute hover:text-ink"
           >
             <X size={11} /> Cancel
           </button>
@@ -463,7 +463,7 @@ function InboxSidebarComponent({
           <button
             type="button"
             onClick={() => setSelectMode(true)}
-            className="rounded-[4px] border border-white/[0.08] px-2 py-1 text-[10px] text-zinc-500 hover:border-white/[0.16] hover:text-zinc-200"
+            className="rounded-[4px] border border-line px-2 py-1 text-[10px] text-ink-mute hover:border-line-strong hover:text-ink"
           >
             Select
           </button>
@@ -471,30 +471,30 @@ function InboxSidebarComponent({
       </div>
 
       {/* Search */}
-      <div className="px-2.5 py-2" style={{ borderBottom: "1px solid rgba(255,255,255,.07)" }}>
+      <div className="px-2.5 py-2" style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search inbox…"
           style={{
             width: "100%",
-            background: "rgba(0,0,0,.25)",
-            border: "1px solid rgba(255,255,255,.09)",
-            boxShadow: "inset 0 1px 0 rgba(0,0,0,.3)",
+            background: "rgba(39, 30, 22, 0.18)",
+            border: "1px solid var(--color-border-default)",
+            boxShadow: "inset 0 1px 0 rgba(39, 30, 22, 0.28)",
             borderRadius: 4,
             padding: "6px 10px",
-            color: "#ededef",
+            color: "var(--color-text-primary)",
             fontSize: 12,
             outline: "none",
             transition: tx(["border-color", "background-color"], "instant"),
           }}
           onFocus={(e) => {
-            e.target.style.borderColor = "oklch(0.78 0.14 260 / 0.4)";
-            e.target.style.background = "rgba(0,0,0,.35)";
+            e.target.style.borderColor = "var(--color-border-focus)";
+            e.target.style.background = "rgba(39, 30, 22, 0.28)";
           }}
           onBlur={(e) => {
-            e.target.style.borderColor = "rgba(255,255,255,.09)";
-            e.target.style.background = "rgba(0,0,0,.25)";
+            e.target.style.borderColor = "var(--color-border-default)";
+            e.target.style.background = "rgba(39, 30, 22, 0.18)";
           }}
         />
         <div className="mt-2 flex flex-wrap gap-1" role="group" aria-label="Inbox priority filter">
@@ -511,8 +511,8 @@ function InboxSidebarComponent({
               aria-pressed={filter === value}
               onClick={() => setFilter(value)}
               className={filter === value
-                ? "rounded-[3px] border border-[oklch(0.78_0.14_260_/_0.45)] bg-[oklch(0.72_0.16_260_/_0.2)] px-2 py-1 text-[10px] text-[oklch(0.78_0.14_260)]"
-                : "rounded-[3px] border border-white/[0.07] px-2 py-1 text-[10px] text-zinc-600 hover:text-zinc-300"}
+                ? "rounded-[3px] border border-accent/45 bg-accent-deep/20 px-2 py-1 text-[10px] text-accent"
+                : "rounded-[3px] border border-line-subtle px-2 py-1 text-[10px] text-ink-dim hover:text-ink-soft"}
             >
               {label}
             </button>
@@ -551,7 +551,7 @@ function InboxSidebarComponent({
         </SortableContext>
         {filtered.length === 0 && (
           <div
-            style={{ textAlign: "center", padding: "40px 10px", fontSize: 12, color: "#6b6b72" }}
+            style={{ textAlign: "center", padding: "40px 10px", fontSize: 12, color: "var(--color-text-muted)" }}
           >
             {query ? "No matches." : "Inbox is clear."}
           </div>
@@ -559,25 +559,25 @@ function InboxSidebarComponent({
       </div>
 
       {/* Footer */}
-      <div style={{ padding: 10, borderTop: "1px solid rgba(255,255,255,.07)" }}>
+      <div style={{ padding: 10, borderTop: "1px solid var(--color-border-subtle)" }}>
         {selectMode && (
           <>
             <div className="mb-2 flex items-center justify-between gap-2">
               <button
                 type="button"
                 onClick={toggleSelectAll}
-                className="text-[10px] text-zinc-500 hover:text-zinc-200"
+                className="text-[10px] text-ink-mute hover:text-ink"
               >
                 {allFilteredSelected ? "Deselect all" : "Select all"}
               </button>
-              <span className="text-[10px] text-zinc-600">{visibleSelectedIds.size} selected</span>
+              <span className="text-[10px] text-ink-dim">{visibleSelectedIds.size} selected</span>
             </div>
             <div className="mb-2 grid grid-cols-2 gap-1.5">
               <button
                 type="button"
                 disabled={visibleSelectedIds.size === 0 || !onDeleteMany}
                 onClick={() => void runBulk(onDeleteMany)}
-                className="inline-flex items-center justify-center gap-1 rounded-[4px] border border-red-400/30 px-2 py-2 text-[10px] text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex items-center justify-center gap-1 rounded-[4px] border border-error/30 px-2 py-2 text-[10px] text-error disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Trash2 size={11} /> Delete
               </button>
@@ -585,7 +585,7 @@ function InboxSidebarComponent({
                 type="button"
                 disabled={visibleSelectedIds.size === 0 || !onCompleteMany}
                 onClick={() => void runBulk(onCompleteMany)}
-                className="inline-flex items-center justify-center gap-1 rounded-[4px] border border-emerald-400/30 px-2 py-2 text-[10px] text-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex items-center justify-center gap-1 rounded-[4px] border border-success/30 px-2 py-2 text-[10px] text-success disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Check size={11} /> Mark done
               </button>
@@ -599,9 +599,9 @@ function InboxSidebarComponent({
               width: "100%",
               padding: "8px 12px",
               borderRadius: 4,
-              border: "1px solid oklch(0.78 0.14 260 / 0.4)",
-              background: "oklch(0.72 0.16 260 / 0.2)",
-              color: "oklch(0.78 0.14 260)",
+              border: "1px solid var(--color-border-focus)",
+              background: "var(--color-accent-primary-muted)",
+              color: "var(--color-accent-primary)",
               fontSize: 12,
               fontWeight: 500,
               cursor: "pointer",

@@ -73,30 +73,30 @@ export function AutomationSettingsSection() {
 
   return (
     <section>
-      <h3 className="mb-3 text-[11px] font-medium uppercase tracking-[0.08em] text-zinc-500">
+      <h3 className="mb-3 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-mute">
         Automation
       </h3>
 
       <div
-        className="space-y-4 rounded-[4px] border bg-white/[0.03] p-4"
-        style={{ borderColor: "rgba(255,255,255,.07)" }}
+        className="space-y-4 rounded-[4px] border bg-fill-faint p-4"
+        style={{ borderColor: "var(--color-border-subtle)" }}
       >
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="max-w-[36rem]">
-            <p className="font-medium text-zinc-100">CLI Credentials</p>
-            <p className="text-xs leading-5 text-zinc-500">
+            <p className="font-medium text-ink">CLI Credentials</p>
+            <p className="text-xs leading-5 text-ink-mute">
               Issue a short-lived bootstrap token, exchange it locally with{" "}
               <code>pravah auth import</code>, and revoke any credential from here.
             </p>
           </div>
-          <div className="rounded-[3px] border border-white/[0.08] bg-black/20 px-2.5 py-1 text-[10px] uppercase tracking-[0.13em] text-zinc-400">
+          <div className="rounded-[3px] border border-line bg-fill-soft px-2.5 py-1 text-[10px] uppercase tracking-[0.13em] text-ink-soft">
             {credentials.length} recorded
           </div>
         </div>
 
         <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
           <label className="block">
-            <span className="mb-1.5 block text-[11px] uppercase tracking-[0.12em] text-zinc-500">
+            <span className="mb-1.5 block text-[11px] uppercase tracking-[0.12em] text-ink-mute">
               Credential Label
             </span>
             <input
@@ -104,8 +104,8 @@ export function AutomationSettingsSection() {
               value={label}
               onChange={(event) => setLabel(event.target.value)}
               placeholder="Codex local"
-              className="w-full rounded-[3px] border bg-black/20 px-3 py-2.5 text-sm text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-[oklch(0.78_0.14_260_/_0.45)]"
-              style={{ borderColor: "rgba(255,255,255,.09)" }}
+              className="w-full rounded-[3px] border bg-fill-soft px-3 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-ink-dim focus:border-accent/45"
+              style={{ borderColor: "var(--color-border-default)" }}
             />
           </label>
 
@@ -114,33 +114,33 @@ export function AutomationSettingsSection() {
               onClick={() => void handleIssue()}
               size="sm"
               disabled={issuing}
-              className="rounded-[3px] !bg-[oklch(0.78_0.14_260)] !text-[#0a0a0b] hover:!bg-[oklch(0.82_0.13_260)]"
+              className="rounded-[3px] !bg-accent !text-[var(--color-bg-base)] hover:!bg-[oklch(0.82_0.13_260)]"
             >
               {issuing ? "Issuing..." : "Issue Bootstrap Token"}
             </Button>
           </div>
         </div>
 
-        <div className="rounded-[3px] border border-white/[0.07] bg-black/20 px-3 py-3">
-          <p className="text-[11px] uppercase tracking-[0.12em] text-zinc-500">
+        <div className="rounded-[3px] border border-line-subtle bg-fill-soft px-3 py-3">
+          <p className="text-[11px] uppercase tracking-[0.12em] text-ink-mute">
             Credential Scopes
           </p>
-          <p className="mt-2 text-xs leading-5 text-zinc-400">
+          <p className="mt-2 text-xs leading-5 text-ink-soft">
             {[
               ...READ_ONLY_AUTOMATION_SCOPES,
               ...(allowTaskWrites ? (["tasks:write"] as const) : []),
             ].join(" · ")}
           </p>
-          <label className="mt-3 flex cursor-pointer items-start gap-2.5 border-t border-white/[0.06] pt-3">
+          <label className="mt-3 flex cursor-pointer items-start gap-2.5 border-t border-line-subtle pt-3">
             <input
               type="checkbox"
               checked={allowTaskWrites}
               onChange={(event) => setAllowTaskWrites(event.target.checked)}
-              className="mt-0.5 accent-[oklch(0.78_0.14_260)]"
+              className="mt-0.5 accent-accent"
             />
             <span>
-              <span className="block text-xs text-zinc-300">Allow task writes</span>
-              <span className="mt-0.5 block text-[11px] leading-4 text-zinc-500">
+              <span className="block text-xs text-ink-soft">Allow task writes</span>
+              <span className="mt-0.5 block text-[11px] leading-4 text-ink-mute">
                 Off by default. Enable only for trusted workflows that need add,
                 move, complete, reopen, or unschedule commands.
               </span>
@@ -150,17 +150,17 @@ export function AutomationSettingsSection() {
 
         {issuedBootstrapToken && (
           <div
-            className="rounded-[3px] border border-emerald-400/20 bg-emerald-500/10 px-3 py-3"
+            className="rounded-[3px] border border-success/25 bg-success-muted px-3 py-3"
             data-testid="automation-bootstrap-token"
           >
-            <p className="text-[11px] uppercase tracking-[0.12em] text-emerald-300">
+            <p className="text-[11px] uppercase tracking-[0.12em] text-success">
               Bootstrap Token
             </p>
-            <p className="mt-1 text-xs leading-5 text-emerald-100">
+            <p className="mt-1 text-xs leading-5 text-success">
               Copy this now. It expires at{" "}
               {new Date(issuedBootstrapToken.expiresAt).toLocaleString()}.
             </p>
-            <code className="mt-3 block overflow-x-auto rounded-[3px] border border-emerald-400/15 bg-black/25 px-3 py-2 text-xs text-emerald-100">
+            <code className="mt-3 block overflow-x-auto rounded-[3px] border border-success/25 bg-fill-soft px-3 py-2 text-xs text-success">
               {issuedBootstrapToken.token}
             </code>
           </div>
@@ -168,22 +168,22 @@ export function AutomationSettingsSection() {
 
         <div className="space-y-2">
           {credentials.length === 0 ? (
-            <p className="text-xs text-zinc-500">No automation credentials issued yet.</p>
+            <p className="text-xs text-ink-mute">No automation credentials issued yet.</p>
           ) : (
             credentials.map((credential) => (
               <div
                 key={credential._id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-[3px] border border-white/[0.07] bg-black/20 px-3 py-3"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-[3px] border border-line-subtle bg-fill-soft px-3 py-3"
               >
                 <div className="min-w-0">
-                  <p className="text-sm text-zinc-100">{credential.label}</p>
-                  <p className="mt-1 text-xs text-zinc-500">
+                  <p className="text-sm text-ink">{credential.label}</p>
+                  <p className="mt-1 text-xs text-ink-mute">
                     {credential.credentialPreview} · {credential.status}
                     {credential.lastUsedAt
                       ? ` · last used ${new Date(credential.lastUsedAt).toLocaleString()}`
                       : ""}
                   </p>
-                  <p className="mt-1 text-[11px] text-zinc-600">
+                  <p className="mt-1 text-[11px] text-ink-dim">
                     {credential.scopes.join(" · ")}
                   </p>
                 </div>
@@ -196,7 +196,7 @@ export function AutomationSettingsSection() {
                     credential.status === "revoked" ||
                     revokingCredentialId === credential._id
                   }
-                  className="rounded-[3px] border border-red-400/15 text-red-400 hover:bg-red-500/10 hover:text-red-300 disabled:opacity-50"
+                  className="rounded-[3px] border border-error/25 text-error hover:bg-error-muted hover:text-error disabled:opacity-50"
                 >
                   {credential.status === "revoked"
                     ? "Revoked"

@@ -74,8 +74,8 @@ export function Timeline({
   const convexConnection = useConvexConnectionState();
   const syncAge = now - lastSyncedAt;
   const convexColor = convexConnection.isWebSocketConnected
-    ? "oklch(0.78 0.18 150)"
-    : "oklch(0.72 0.2 25)";
+    ? "var(--color-success)"
+    : "var(--color-error)";
 
   const dates = useMemo(() => generateDateRange(14, 28), []);
 
@@ -218,8 +218,8 @@ export function Timeline({
           className="flex flex-col shrink-0 overflow-hidden"
           style={{
             width: 180,
-            borderRight: "1px solid rgba(255,255,255,.07)",
-            background: "#101013",
+            borderRight: "1px solid var(--color-border-subtle)",
+            background: "var(--color-bg-surface)",
             fontFamily: "var(--font-mono)",
             fontSize: 10.5,
           }}
@@ -227,29 +227,29 @@ export function Timeline({
           {/* TODAY button cell aligns with the header row */}
           <div
             className="flex items-center px-4"
-            style={{ height: 58, borderBottom: "1px solid rgba(255,255,255,.07)" }}
+            style={{ height: 58, borderBottom: "1px solid var(--color-border-subtle)" }}
           >
             <button
               onClick={() => scrollToToday(true)}
               style={{
                 fontSize: 11,
                 letterSpacing: 0.7,
-                color: "#6b6b72",
+                color: "var(--color-text-muted)",
                 fontFamily: "var(--font-mono)",
                 background: "transparent",
-                border: "1px solid rgba(255,255,255,.07)",
+                border: "1px solid var(--color-border-subtle)",
                 borderRadius: 4,
                 padding: "4px 8px",
                 cursor: "pointer",
                 transition: tx(["color", "border-color"], "instant"),
               }}
               onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.color = "#ededef";
-                (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,.13)";
+                (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text-primary)";
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-border-default)";
               }}
               onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.color = "#6b6b72";
-                (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,.07)";
+                (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text-muted)";
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-border-subtle)";
               }}
             >
               TODAY
@@ -261,27 +261,27 @@ export function Timeline({
               type="button"
               onClick={() => setShowOverdue((open) => !open)}
               aria-expanded={showOverdue}
-              className="mx-3 mb-3 rounded-[5px] border border-red-400/25 bg-red-500/[0.08] px-3 py-2 text-left hover:bg-red-500/[0.13]"
+              className="mx-3 mb-3 rounded-[5px] border border-error/30 bg-error-muted px-3 py-2 text-left hover:bg-error/[0.13]"
             >
-              <span className="block text-[10px] font-medium uppercase tracking-[0.12em] text-red-300">Overdue</span>
-              <span className="mt-1 block text-[11px] text-red-200/70">{overdueTasks.length} task{overdueTasks.length === 1 ? "" : "s"} need a new home</span>
+              <span className="block text-[10px] font-medium uppercase tracking-[0.12em] text-error">Overdue</span>
+              <span className="mt-1 block text-[11px] text-error/70">{overdueTasks.length} task{overdueTasks.length === 1 ? "" : "s"} need a new home</span>
             </button>
           )}
 
-          <LaneLabel name="TIMELINE" count={allScheduled.length} color="oklch(0.72 0.16 30)" />
+          <LaneLabel name="TIMELINE" count={allScheduled.length} color="var(--color-deadline)" />
 
           {/* Stats */}
           <div
             className="mx-3 my-3.5 p-3"
             style={{
-              border: "1px solid rgba(255,255,255,.07)",
+              border: "1px solid var(--color-border-subtle)",
               borderRadius: 6,
               lineHeight: 1.7,
-              color: "#6b6b72",
-              background: "rgba(255,255,255,.02)",
+              color: "var(--color-text-muted)",
+              background: "var(--color-fill-faint)",
             }}
           >
-            <div className="tabular" style={{ color: "#ededef", marginBottom: 4, fontSize: 11 }}>
+            <div className="tabular" style={{ color: "var(--color-text-primary)", marginBottom: 4, fontSize: 11 }}>
               {doneTodayCount}/{todayTotalCount} done today
             </div>
             <div className="tabular">{allScheduled.length} scheduled</div>
@@ -296,7 +296,7 @@ export function Timeline({
                 paddingBottom: 12,
                 fontSize: 10,
                 fontFamily: "var(--font-mono)",
-                color: "#45454a",
+                color: "var(--color-text-dim)",
                 letterSpacing: 0.6,
               }}
             >
@@ -324,8 +324,8 @@ export function Timeline({
                 position: "sticky",
                 top: 0,
                 zIndex: 3,
-                background: "#0a0a0b",
-                borderBottom: "1px solid rgba(255,255,255,.07)",
+                background: "var(--color-bg-base)",
+                borderBottom: "1px solid var(--color-border-subtle)",
               }}
             >
               {dates.map((date, i) => (
@@ -360,31 +360,31 @@ export function Timeline({
       </div>
 
       {showOverdue && overdueTasks.length > 0 && onRescheduleTask && (
-        <aside className="absolute bottom-7 left-[180px] top-[58px] z-10 w-[330px] overflow-y-auto border-r border-white/[0.1] bg-[#101013]/95 p-3 shadow-2xl backdrop-blur-xl">
-          <div className="mb-3 flex items-start justify-between gap-3 border-b border-white/[0.07] pb-3">
+        <aside className="absolute bottom-7 left-[180px] top-[58px] z-10 w-[330px] overflow-y-auto border-r border-white/[0.1] bg-[var(--color-bg-surface)]/95 p-3 shadow-2xl backdrop-blur-xl">
+          <div className="mb-3 flex items-start justify-between gap-3 border-b border-line-subtle pb-3">
             <div>
-              <h2 className="text-sm font-medium text-zinc-100">Overdue triage</h2>
-              <p className="mt-1 text-xs text-zinc-500">Reschedule each task without leaving the timeline.</p>
+              <h2 className="text-sm font-medium text-ink">Overdue triage</h2>
+              <p className="mt-1 text-xs text-ink-mute">Reschedule each task without leaving the timeline.</p>
             </div>
-            <button type="button" onClick={() => setShowOverdue(false)} aria-label="Close overdue triage" className="text-zinc-500 hover:text-zinc-200">×</button>
+            <button type="button" onClick={() => setShowOverdue(false)} aria-label="Close overdue triage" className="text-ink-mute hover:text-ink">×</button>
           </div>
           <div className="space-y-2">
             {overdueTasks.map((task) => (
-              <div key={task._id} className="rounded-[5px] border border-white/[0.07] bg-white/[0.025] p-2.5">
-                <button type="button" onClick={() => onTaskClick(task)} className="w-full truncate text-left text-xs text-zinc-200 hover:text-white">{task.title}</button>
-                <p className="mt-1 text-[10px] text-red-300">Was due {task.deadline}</p>
+              <div key={task._id} className="rounded-[5px] border border-line-subtle bg-fill-faint p-2.5">
+                <button type="button" onClick={() => onTaskClick(task)} className="w-full truncate text-left text-xs text-ink hover:text-canvas">{task.title}</button>
+                <p className="mt-1 text-[10px] text-error">Was due {task.deadline}</p>
                 <div className="mt-2 flex flex-wrap gap-1">
                   {([[0, "Today"], [1, "Tomorrow"], [7, "+1w"]] as const).map(([offset, label]) => (
                     <button
                       key={label}
                       type="button"
                       onClick={() => onRescheduleTask(task._id, dateOffset(offset))}
-                      className="rounded-[3px] border border-white/[0.08] px-2 py-1 text-[10px] text-zinc-400 hover:border-[oklch(0.78_0.14_260_/_0.45)] hover:text-[oklch(0.78_0.14_260)]"
+                      className="rounded-[3px] border border-line px-2 py-1 text-[10px] text-ink-soft hover:border-accent/45 hover:text-accent"
                     >
                       {label}
                     </button>
                   ))}
-                  <input type="date" min={today} aria-label={`Reschedule ${task.title}`} onChange={(event) => event.target.value && onRescheduleTask(task._id, event.target.value)} className="min-w-0 flex-1 rounded-[3px] border border-white/[0.08] bg-black/20 px-1.5 py-1 text-[10px] text-zinc-300 outline-none" />
+                  <input type="date" min={today} aria-label={`Reschedule ${task.title}`} onChange={(event) => event.target.value && onRescheduleTask(task._id, event.target.value)} className="min-w-0 flex-1 rounded-[3px] border border-line bg-fill-soft px-1.5 py-1 text-[10px] text-ink-soft outline-none" />
                 </div>
               </div>
             ))}
@@ -398,11 +398,11 @@ export function Timeline({
         style={{
           height: 28,
           padding: "0 16px",
-          borderTop: "1px solid rgba(255,255,255,.07)",
-          background: "#101013",
+          borderTop: "1px solid var(--color-border-subtle)",
+          background: "var(--color-bg-surface)",
           fontFamily: "var(--font-mono)",
           fontSize: 11,
-          color: "#6b6b72",
+          color: "var(--color-text-muted)",
           letterSpacing: 0.3,
         }}
       >
@@ -411,7 +411,7 @@ export function Timeline({
           convex · {formatAge(syncAge)}
         </span>
         <div className="flex-1" />
-        <span style={{ color: "#45454a" }}>
+        <span style={{ color: "var(--color-text-dim)" }}>
           <kbd>N</kbd> new · <kbd>⌘J</kbd> kairo · <kbd>←→</kbd> pan · <kbd>T</kbd> today
         </span>
       </div>
@@ -451,13 +451,13 @@ function DayHeader({
         width: TIMELINE_COL_WIDTH,
         flexShrink: 0,
         padding: "10px 12px",
-        borderRight: "1px solid rgba(255,255,255,.07)",
+        borderRight: "1px solid var(--color-border-subtle)",
         fontFamily: "var(--font-mono)",
         position: "relative",
         background: isToday
-          ? "oklch(0.72 0.16 260 / 0.2)"
+          ? "var(--color-accent-primary-muted)"
           : isWeekend
-          ? "rgba(255,255,255,.012)"
+          ? "var(--color-fill-faint)"
           : "transparent",
         height: 58,
         ...entranceStyle,
@@ -466,20 +466,20 @@ function DayHeader({
       <div
         style={{
           fontSize: 9.5,
-          color: isToday ? "oklch(0.78 0.14 260)" : "#6b6b72",
+          color: isToday ? "var(--color-accent-primary)" : "var(--color-text-muted)",
           letterSpacing: 0.8,
           display: "flex",
           justifyContent: "space-between",
         }}
       >
         <span>{dow}</span>
-        {isMonthStart && <span style={{ color: "#c2c2c8" }}>{month.toUpperCase()}</span>}
+        {isMonthStart && <span style={{ color: "var(--color-text-secondary)" }}>{month.toUpperCase()}</span>}
       </div>
       <div
         className="tabular"
         style={{
           fontSize: 20,
-          color: isToday ? "oklch(0.78 0.14 260)" : isPast ? "#6b6b72" : "#ededef",
+          color: isToday ? "var(--color-accent-primary)" : isPast ? "var(--color-text-muted)" : "var(--color-text-primary)",
           fontWeight: 500,
           marginTop: 2,
           letterSpacing: -0.5,
@@ -496,9 +496,8 @@ function DayHeader({
               left: 0,
               right: 0,
               height: 2,
-              background: "oklch(0.78 0.14 260)",
-              boxShadow: "0 0 18px oklch(0.78 0.14 260 / 0.45)",
-              transformOrigin: "center",
+              background: "var(--color-accent-primary)",
+                            transformOrigin: "center",
               animation:
                 entranceDelayMs !== null
                   ? `todayAccentReveal 520ms cubic-bezier(0.16,1,0.3,1) ${entranceDelayMs + 220}ms both`
@@ -514,7 +513,7 @@ function DayHeader({
               right: 0,
               height: 32,
               background:
-                "linear-gradient(to bottom, oklch(0.78 0.14 260 / 0.18), transparent)",
+                "linear-gradient(to bottom, rgba(103, 83, 199, 0.1), transparent)",
               pointerEvents: "none",
             }}
           />
@@ -529,7 +528,7 @@ function LaneLabel({ name, count, color }: { name: string; count: number; color:
     <div
       className="flex items-center gap-2 px-[14px] py-[10px]"
       style={{
-        borderBottom: "1px solid rgba(255,255,255,.07)",
+        borderBottom: "1px solid var(--color-border-subtle)",
         fontSize: 11,
         letterSpacing: 0.7,
         fontFamily: "var(--font-mono)",
@@ -537,8 +536,8 @@ function LaneLabel({ name, count, color }: { name: string; count: number; color:
       }}
     >
       <span style={{ width: 8, height: 8, borderRadius: 2, background: color, flexShrink: 0 }} />
-      <span style={{ color: "#ededef" }}>{name}</span>
-      <span className="tabular" style={{ color: "#6b6b72", fontSize: 10 }}>{count}</span>
+      <span style={{ color: "var(--color-text-primary)" }}>{name}</span>
+      <span className="tabular" style={{ color: "var(--color-text-muted)", fontSize: 10 }}>{count}</span>
     </div>
   );
 }

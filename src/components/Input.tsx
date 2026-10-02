@@ -7,11 +7,11 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 const FIELD_BASE = cn(
-  "w-full rounded-[5px] px-3 py-2 text-[13px] text-zinc-100",
-  "border bg-white/[0.025] border-white/[0.08]",
-  "placeholder:text-zinc-600",
+  "w-full rounded-[5px] px-3 py-2 text-[13px] text-ink",
+  "border border-line bg-fill-soft",
+  "placeholder:text-ink-dim",
   "focus:outline-none",
-  "hover:border-white/[0.14]"
+  "hover:border-line-strong"
 );
 
 // Inline because oklch() focus shadow doesn't compose into Tailwind shorthand.
@@ -27,7 +27,7 @@ export function Input({ label, error, className, style, ...props }: InputProps) 
       {label && (
         <label
           htmlFor={inputId}
-          className="block text-[10px] text-zinc-500 uppercase tracking-[0.12em] font-medium mb-1.5"
+          className="block text-[10px] text-ink-mute uppercase tracking-[0.12em] font-medium mb-1.5"
         >
           {label}
         </label>
@@ -36,7 +36,7 @@ export function Input({ label, error, className, style, ...props }: InputProps) 
         id={inputId}
         className={cn(
           FIELD_BASE,
-          error && "border-red-400/50",
+          error && "border-error/50",
           className
         )}
         style={{
@@ -45,12 +45,12 @@ export function Input({ label, error, className, style, ...props }: InputProps) 
         }}
         onFocus={(e) => {
           if (!error) {
-            e.currentTarget.style.borderColor = "oklch(0.78 0.14 260 / 0.55)";
+            e.currentTarget.style.borderColor = "rgba(103, 83, 199, 0.55)";
             e.currentTarget.style.boxShadow =
-              "0 0 0 3px oklch(0.78 0.14 260 / 0.18)";
+              "0 0 0 3px rgba(103, 83, 199, 0.18)";
           } else {
             e.currentTarget.style.boxShadow =
-              "0 0 0 3px rgba(248,113,113,0.18)";
+              "0 0 0 3px var(--color-error-muted)";
           }
           props.onFocus?.(e);
         }}
@@ -62,7 +62,7 @@ export function Input({ label, error, className, style, ...props }: InputProps) 
         {...props}
       />
       {error && (
-        <p className="text-[11px] text-red-400 mt-1.5">{error}</p>
+        <p className="text-[11px] text-error mt-1.5">{error}</p>
       )}
     </div>
   );
@@ -82,7 +82,7 @@ export function Textarea({ label, error, className, style, ...props }: TextareaP
       {label && (
         <label
           htmlFor={textareaId}
-          className="block text-[10px] text-zinc-500 uppercase tracking-[0.12em] font-medium mb-1.5"
+          className="block text-[10px] text-ink-mute uppercase tracking-[0.12em] font-medium mb-1.5"
         >
           {label}
         </label>
@@ -92,7 +92,7 @@ export function Textarea({ label, error, className, style, ...props }: TextareaP
         className={cn(
           FIELD_BASE,
           "resize-none",
-          error && "border-red-400/50",
+          error && "border-error/50",
           className
         )}
         style={{
@@ -101,12 +101,12 @@ export function Textarea({ label, error, className, style, ...props }: TextareaP
         }}
         onFocus={(e) => {
           if (!error) {
-            e.currentTarget.style.borderColor = "oklch(0.78 0.14 260 / 0.55)";
+            e.currentTarget.style.borderColor = "rgba(103, 83, 199, 0.55)";
             e.currentTarget.style.boxShadow =
-              "0 0 0 3px oklch(0.78 0.14 260 / 0.18)";
+              "0 0 0 3px rgba(103, 83, 199, 0.18)";
           } else {
             e.currentTarget.style.boxShadow =
-              "0 0 0 3px rgba(248,113,113,0.18)";
+              "0 0 0 3px var(--color-error-muted)";
           }
           props.onFocus?.(e);
         }}
@@ -118,7 +118,7 @@ export function Textarea({ label, error, className, style, ...props }: TextareaP
         {...props}
       />
       {error && (
-        <p className="text-[11px] text-red-400 mt-1.5">{error}</p>
+        <p className="text-[11px] text-error mt-1.5">{error}</p>
       )}
     </div>
   );
