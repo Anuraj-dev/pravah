@@ -1,1 +1,1 @@
-export const TIMELINE_COL_WIDTH = 192;
+export const TIMELINE_COL_WIDTH = 216;
