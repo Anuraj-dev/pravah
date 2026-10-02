@@ -19,10 +19,10 @@ interface InsightsPageProps {
 
 function MetricCard({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <div className="rounded-lg border border-white/[0.07] bg-white/[0.025] p-4">
-      <p className="text-xs uppercase tracking-[0.12em] text-zinc-500">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-zinc-100">{value}</p>
-      <p className="mt-1 text-xs text-zinc-500">{hint}</p>
+    <div className="rounded-lg border border-line-subtle bg-fill-faint p-4">
+      <p className="text-xs uppercase tracking-[0.12em] text-ink-mute">{label}</p>
+      <p className="mt-2 text-2xl font-semibold text-ink">{value}</p>
+      <p className="mt-1 text-xs text-ink-mute">{hint}</p>
     </div>
   );
 }
@@ -185,15 +185,15 @@ export function InsightsPage({
   }, [completedTaskSource, historyNow, historyQuery, historyWindow, tasks]);
 
   return (
-    <div className="h-full overflow-y-auto bg-[#0a0a0b]">
+    <div className="h-full overflow-y-auto bg-[var(--color-bg-base)]">
       <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col px-6 py-6">
-        <section className="mb-6 border-b border-white/[0.07] pb-5">
-          <h1 className="text-2xl font-semibold text-zinc-100">Insights</h1>
-          <p className="mt-1 text-sm text-zinc-500">A quick view of completion and backlog health.</p>
+        <section className="mb-6 border-b border-line-subtle pb-5">
+          <h1 className="text-2xl font-semibold text-ink">Insights</h1>
+          <p className="mt-1 text-sm text-ink-mute">A quick view of completion and backlog health.</p>
         </section>
 
         <div
-          className="mb-5 inline-flex w-fit gap-0.5 rounded-[6px] border border-white/[0.07] bg-white/[0.03] p-[3px]"
+          className="mb-5 inline-flex w-fit gap-0.5 rounded-[6px] border border-line-subtle bg-fill-faint p-[3px]"
           role="tablist"
           aria-label="Insights tabs"
         >
@@ -205,8 +205,8 @@ export function InsightsPage({
             className={cn(
               "rounded-[4px] px-3 py-1.5 text-xs transition-colors",
               activeTab === "stats"
-                ? "bg-[oklch(0.72_0.16_260_/_0.2)] text-[oklch(0.78_0.14_260)]"
-                : "text-zinc-400 hover:text-zinc-100"
+                ? "bg-accent-deep/20 text-accent"
+                : "text-ink-soft hover:text-ink"
             )}
           >
             Stats
@@ -219,8 +219,8 @@ export function InsightsPage({
             className={cn(
               "rounded-[4px] px-3 py-1.5 text-xs transition-colors",
               activeTab === "completed"
-                ? "bg-[oklch(0.72_0.16_260_/_0.2)] text-[oklch(0.78_0.14_260)]"
-                : "text-zinc-400 hover:text-zinc-100"
+                ? "bg-accent-deep/20 text-accent"
+                : "text-ink-soft hover:text-ink"
             )}
           >
             Completed
@@ -229,13 +229,13 @@ export function InsightsPage({
 
         {activeTab === "stats" ? (
           <div className="space-y-4">
-            <section className="rounded-lg border border-white/[0.07] bg-white/[0.025] p-4">
+            <section className="rounded-lg border border-line-subtle bg-fill-faint p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-sm font-medium text-zinc-200">Recent momentum</h2>
-                  <p className="mt-1 text-xs text-zinc-500">Completions across the selected rolling window.</p>
+                  <h2 className="text-sm font-medium text-ink">Recent momentum</h2>
+                  <p className="mt-1 text-xs text-ink-mute">Completions across the selected rolling window.</p>
                 </div>
-                <div className="flex items-center gap-1 rounded-[6px] border border-white/[0.07] bg-black/20 p-1" role="group" aria-label="Momentum range">
+                <div className="flex items-center gap-1 rounded-[6px] border border-line-subtle bg-fill-soft p-1" role="group" aria-label="Momentum range">
                   {(["7d", "30d", "90d"] as const).map((option) => (
                     <button
                       key={option}
@@ -243,8 +243,8 @@ export function InsightsPage({
                       aria-pressed={range === option}
                       onClick={() => setRange(option)}
                       className={range === option
-                        ? "rounded-[4px] bg-white/[0.1] px-2 py-1 text-[11px] text-zinc-100"
-                        : "rounded-[4px] px-2 py-1 text-[11px] text-zinc-500 hover:text-zinc-200"}
+                        ? "rounded-[4px] bg-fill-strong px-2 py-1 text-[11px] text-ink"
+                        : "rounded-[4px] px-2 py-1 text-[11px] text-ink-mute hover:text-ink"}
                     >
                       {option.toUpperCase()}
                     </button>
@@ -257,7 +257,7 @@ export function InsightsPage({
                   return (
                     <div key={`${range}-${index}`} className="group relative flex h-full flex-1 items-end">
                       <div
-                        className="w-full rounded-t-[3px] bg-[oklch(0.78_0.14_260_/_0.72)] transition-[height] duration-300 group-hover:bg-[oklch(0.78_0.14_260)]"
+                        className="w-full rounded-t-[3px] bg-accent/72 transition-[height] duration-300 group-hover:bg-accent"
                         style={{ height: `${Math.max(count > 0 ? 8 : 2, (count / peak) * 100)}%` }}
                         title={`${count} completed`}
                       />
@@ -265,7 +265,7 @@ export function InsightsPage({
                   );
                 })}
               </div>
-              <div className="mt-2 flex items-center justify-between text-[10px] text-zinc-600">
+              <div className="mt-2 flex items-center justify-between text-[10px] text-ink-dim">
                 <span>{analytics.rangeTotal} completed</span>
                 <span>{RANGE_DAYS[range]} days</span>
               </div>
@@ -279,39 +279,39 @@ export function InsightsPage({
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <section className="rounded-lg border border-white/[0.07] bg-white/[0.025] p-4">
-                <h2 className="text-sm font-medium text-zinc-200">Consistency</h2>
+              <section className="rounded-lg border border-line-subtle bg-fill-faint p-4">
+                <h2 className="text-sm font-medium text-ink">Consistency</h2>
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <MetricCard label="Current streak" value={`${analytics.streak}d`} hint="Consecutive days with a completion." />
                   <MetricCard label="Best streak" value={`${analytics.longestStreak}d`} hint="Longest completion run." />
                 </div>
               </section>
-              <section className="rounded-lg border border-white/[0.07] bg-white/[0.025] p-4">
-                <h2 className="text-sm font-medium text-zinc-200">Work rhythm</h2>
+              <section className="rounded-lg border border-line-subtle bg-fill-faint p-4">
+                <h2 className="text-sm font-medium text-ink">Work rhythm</h2>
                 <dl className="mt-4 space-y-3 text-sm">
-                  <div className="flex items-center justify-between gap-3"><dt className="text-zinc-500">Most productive day</dt><dd className="text-zinc-200">{analytics.bestWeekday ?? "Not enough data"}</dd></div>
-                  <div className="flex items-center justify-between gap-3"><dt className="text-zinc-500">Peak completion hour</dt><dd className="text-zinc-200">{analytics.peakHour ?? "Not enough data"}</dd></div>
-                  <div className="flex items-center justify-between gap-3"><dt className="text-zinc-500">Median cycle time</dt><dd className="text-zinc-200">{analytics.medianCycle === null ? "Not enough data" : `${analytics.medianCycle.toFixed(1)}d`}</dd></div>
+                  <div className="flex items-center justify-between gap-3"><dt className="text-ink-mute">Most productive day</dt><dd className="text-ink">{analytics.bestWeekday ?? "Not enough data"}</dd></div>
+                  <div className="flex items-center justify-between gap-3"><dt className="text-ink-mute">Peak completion hour</dt><dd className="text-ink">{analytics.peakHour ?? "Not enough data"}</dd></div>
+                  <div className="flex items-center justify-between gap-3"><dt className="text-ink-mute">Median cycle time</dt><dd className="text-ink">{analytics.medianCycle === null ? "Not enough data" : `${analytics.medianCycle.toFixed(1)}d`}</dd></div>
                 </dl>
               </section>
             </div>
 
             {goalRows.length > 0 && (
-              <section className="rounded-lg border border-white/[0.07] bg-white/[0.025] p-4">
+              <section className="rounded-lg border border-line-subtle bg-fill-faint p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-sm font-medium text-zinc-200">Goals in motion</h2>
-                    <p className="mt-1 text-xs text-zinc-500">Progress from linked tasks.</p>
+                    <h2 className="text-sm font-medium text-ink">Goals in motion</h2>
+                    <p className="mt-1 text-xs text-ink-mute">Progress from linked tasks.</p>
                   </div>
-                  <span className="text-xs text-zinc-600">{goalRows.length} active</span>
+                  <span className="text-xs text-ink-dim">{goalRows.length} active</span>
                 </div>
                 <div className="mt-4 space-y-3">
                   {goalRows.map((goal) => {
                     const percent = Math.round((goal.done / goal.total) * 100);
                     return (
                       <div key={goal.id}>
-                        <div className="flex items-center justify-between gap-3 text-xs"><span className="min-w-0 truncate text-zinc-300">{goal.text}</span><span className="tabular text-zinc-600">{goal.done}/{goal.total}</span></div>
-                        <div className="mt-1.5 h-1 rounded-full bg-white/[0.06]"><div className="h-full rounded-full bg-[oklch(0.78_0.14_260)]" style={{ width: `${percent}%` }} /></div>
+                        <div className="flex items-center justify-between gap-3 text-xs"><span className="min-w-0 truncate text-ink-soft">{goal.text}</span><span className="tabular text-ink-dim">{goal.done}/{goal.total}</span></div>
+                        <div className="mt-1.5 h-1 rounded-full bg-fill-soft"><div className="h-full rounded-full bg-accent" style={{ width: `${percent}%` }} /></div>
                       </div>
                     );
                   })}
@@ -320,13 +320,13 @@ export function InsightsPage({
             )}
           </div>
         ) : (
-          <section className="rounded-lg border border-white/[0.07] bg-white/[0.025] p-4">
+          <section className="rounded-lg border border-line-subtle bg-fill-faint p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-sm font-medium text-zinc-200">Completed Tasks</h2>
-                <p className="mt-1 text-xs text-zinc-500">A searchable history of finished work.</p>
+                <h2 className="text-sm font-medium text-ink">Completed Tasks</h2>
+                <p className="mt-1 text-xs text-ink-mute">A searchable history of finished work.</p>
               </div>
-              <div className="flex items-center gap-1 rounded-[6px] border border-white/[0.07] bg-black/20 p-1" role="group" aria-label="Completion history window">
+              <div className="flex items-center gap-1 rounded-[6px] border border-line-subtle bg-fill-soft p-1" role="group" aria-label="Completion history window">
                 {(["7d", "30d", "all"] as const).map((window) => (
                   <button
                     key={window}
@@ -336,8 +336,8 @@ export function InsightsPage({
                     className={cn(
                       "rounded-[4px] px-2 py-1 text-[11px] transition-colors",
                       historyWindow === window
-                        ? "bg-white/[0.1] text-zinc-100"
-                        : "text-zinc-500 hover:text-zinc-200"
+                        ? "bg-fill-strong text-ink"
+                        : "text-ink-mute hover:text-ink"
                     )}
                   >
                     {window === "all" ? "All" : window.toUpperCase()}
@@ -351,10 +351,10 @@ export function InsightsPage({
               onChange={(event) => setHistoryQuery(event.target.value)}
               placeholder="Search completed tasks…"
               aria-label="Search completed tasks"
-              className="mt-4 w-full rounded-[6px] border border-white/[0.09] bg-black/25 px-3 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-[oklch(0.78_0.14_260_/_0.45)]"
+              className="mt-4 w-full rounded-[6px] border border-line bg-fill-soft px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-dim focus:border-accent/45"
             />
             {completed.length === 0 ? (
-              <p className="mt-3 text-sm text-zinc-500">
+              <p className="mt-3 text-sm text-ink-mute">
                 {historyQuery || historyWindow !== "all"
                   ? "No completed tasks match this view."
                   : "No completed tasks yet."}
@@ -362,9 +362,9 @@ export function InsightsPage({
             ) : (
               <ul className="mt-3 space-y-2">
                 {completed.map((task) => (
-                  <li key={task._id} className="rounded-[6px] border border-white/[0.07] bg-[#101013] px-3 py-2">
-                    <p className="text-sm text-zinc-100">{task.title}</p>
-                    <p className="mt-1 text-xs text-zinc-600">
+                  <li key={task._id} className="rounded-[6px] border border-line-subtle bg-[var(--color-bg-surface)] px-3 py-2">
+                    <p className="text-sm text-ink">{task.title}</p>
+                    <p className="mt-1 text-xs text-ink-dim">
                       Completed {new Date(completionTimestamp(task)).toLocaleDateString()}
                     </p>
                   </li>

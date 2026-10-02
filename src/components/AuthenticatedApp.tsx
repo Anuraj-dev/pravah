@@ -355,17 +355,14 @@ export function AuthenticatedApp() {
             <div
               style={{
                 padding: "8px 12px",
-                background: "rgba(20, 20, 24, 0.92)",
-                backdropFilter: "blur(6px)",
-                WebkitBackdropFilter: "blur(6px)",
-                border: "1px solid oklch(0.78 0.14 260 / 0.45)",
-                borderLeft: "3px solid oklch(0.78 0.14 260)",
+                background: "var(--color-bg-floating)",
+                border: "1px solid var(--color-border-focus)",
                 borderRadius: 5,
                 fontSize: 12,
-                color: "#ededef",
+                color: "var(--color-text-primary)",
                 transform: "rotate(0.6deg) scale(1.03)",
                 boxShadow:
-                  "0 24px 60px rgba(0,0,0,0.55), 0 8px 18px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.04), 0 0 28px oklch(0.78 0.14 260 / 0.28)",
+                  "0 24px 60px rgba(39, 30, 22, 0.22), 0 0 0 1px var(--color-border-subtle)",
                 fontFamily: "var(--font-sans)",
                 whiteSpace: "nowrap",
                 overflow: "hidden",
