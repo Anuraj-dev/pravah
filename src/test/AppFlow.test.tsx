@@ -90,11 +90,11 @@ vi.mock("../components/GoogleCallback", () => ({
   GoogleCallback: () => null,
 }));
 
-vi.mock("../components/Settings", () => ({
-  Settings: ({ onClose }: { onClose: () => void }) => (
+vi.mock("../components/settings/SettingsPage", () => ({
+  SettingsPage: ({ onBack }: { onBack: () => void }) => (
     <div>
-      <h2>Settings Modal</h2>
-      <button onClick={onClose}>Close Settings</button>
+      <h2>Settings Page</h2>
+      <button onClick={onBack}>Close Settings</button>
     </div>
   ),
 }));

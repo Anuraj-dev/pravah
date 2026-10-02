@@ -9,16 +9,18 @@ import {
   navTimelineIcon,
   navTimelineFillIcon,
 } from "./ui/traced-icons";
-import { SettingsIcon } from "./ui/icons";
+import type { ComponentType } from "react";
+import { appSettingsIcon } from "./ui/traced-icons";
 
-export type AppPage = "timeline" | "goals" | "insights";
+const AppSettingsGlyph = appSettingsIcon;
+
+export type AppPage = "timeline" | "goals" | "insights" | "settings";
 
 interface TopNavbarProps {
   activePage: AppPage;
   onNavigate: (page: AppPage) => void;
   centerContent?: ReactNode;
   rightContent?: ReactNode;
-  onOpenSettings?: () => void;
 }
 
 function BrandMark({ size = 26 }: { size?: number }) {
@@ -42,17 +44,23 @@ function getWeekNumber(date: Date): number {
 }
 
 // Mobile header subtitles, per view (App.tsx headerViewName companions).
-const VIEW_META: Record<AppPage, { title: string; icon: [typeof navTimelineIcon, typeof navTimelineFillIcon] }> = {
+// Settings is a destination, not a tab: it renders in the header title and
+// the squircle button, but never joins the workspace tab pill.
+type IconPair = [ComponentType<{ size?: number }>, ComponentType<{ size?: number }>];
+
+const VIEW_META: Record<AppPage, { title: string; icon: IconPair }> = {
   timeline: { title: "Timeline", icon: [navTimelineIcon, navTimelineFillIcon] },
   goals: { title: "Long-term Goals", icon: [navGoalsIcon, navGoalsFillIcon] },
   insights: { title: "Insights", icon: [navProgressIcon, navProgressFillIcon] },
+  settings: { title: "Settings", icon: [appSettingsIcon, appSettingsIcon] },
 };
+
+const TAB_PAGES: AppPage[] = ["timeline", "goals", "insights"];
 
 export function TopNavbar({
   activePage,
   onNavigate,
   rightContent,
-  onOpenSettings,
 }: TopNavbarProps) {
   const now = new Date();
   const monthName = now.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
@@ -110,7 +118,7 @@ export function TopNavbar({
           border: "1px solid var(--color-border-subtle)",
         }}
       >
-        {(Object.keys(VIEW_META) as AppPage[]).map((page) => (
+        {TAB_PAGES.map((page) => (
           <NavTab
             key={page}
             active={activePage === page}
@@ -127,34 +135,37 @@ export function TopNavbar({
       {/* Right actions */}
       <div className="flex items-center gap-2">
         {rightContent}
-        {onOpenSettings && (
-          <button
-            onClick={onOpenSettings}
-            aria-label="Settings"
-            title="Settings"
-            className="flex items-center justify-center rounded-[10px]"
-            style={{
-              width: 36,
-              height: 36,
-              background: "var(--color-bg-surface)",
-              border: "1px solid var(--color-border-default)",
-              color: "var(--color-text-muted)",
-              cursor: "pointer",
-              boxShadow: "0 1px 2px rgba(44,33,24,0.05)",
-              transition: tx(["color", "border-color"], "instant"),
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text-primary)";
-              (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-border-strong)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text-muted)";
-              (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-border-default)";
-            }}
-          >
-            <SettingsIcon size={16} strokeWidth={1.8} />
-          </button>
-        )}
+        <button
+          onClick={() => onNavigate("settings")}
+          aria-label="Settings"
+          aria-current={activePage === "settings" ? "page" : undefined}
+          title="Settings"
+          className="flex items-center justify-center rounded-[10px]"
+          style={{
+            width: 36,
+            height: 36,
+            background: activePage === "settings" ? "var(--color-accent-dim)" : "var(--color-bg-surface)",
+            border: `1px solid ${activePage === "settings" ? "rgba(var(--color-accent-primary-rgb), 0.4)" : "var(--color-border-default)"}`,
+            color: activePage === "settings" ? "var(--color-accent-primary)" : "var(--color-text-muted)",
+            cursor: "pointer",
+            boxShadow: "0 1px 2px rgba(44,33,24,0.05)",
+            transition: tx(["color", "border-color", "background-color"], "instant"),
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text-primary)";
+            (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-border-strong)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.color =
+              activePage === "settings" ? "var(--color-accent-primary)" : "var(--color-text-muted)";
+            (e.currentTarget as HTMLButtonElement).style.borderColor =
+              activePage === "settings"
+                ? "rgba(var(--color-accent-primary-rgb), 0.4)"
+                : "var(--color-border-default)";
+          }}
+        >
+          <AppSettingsGlyph size={16} />
+        </button>
       </div>
     </header>
   );

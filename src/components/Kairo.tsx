@@ -26,38 +26,30 @@ import {
   useKairoTaskProposalDecisions,
 } from "../hooks/useKairoTaskProposalDecisions";
 import { KairoTaskProposalList } from "./KairoTaskProposalList";
+import { ChevronDownIcon } from "./ui/icons";
+import {
+  settingsKairoIcon,
+  appSettingsIcon,
+  kairoKeyIcon,
+} from "./ui/traced-icons";
+import type { SettingsCategory } from "./settings/SettingsPage";
 
+const KairoMarkGlyph = settingsKairoIcon;
+const KairoKeyGlyph = kairoKeyIcon;
+const AppSettingsGlyph = appSettingsIcon;
 const ACCENT = "var(--color-accent-primary)";
-const ACCENT_SOFT = "rgba(88, 68, 184, 0.2)";
+const ACCENT_SOFT = "var(--color-accent-primary-muted)";
 
 interface KairoProps {
   onActiveChange?: (active: boolean) => void;
   tasks: Task[];
   inboxTasks: Task[];
-  onOpenSettings?: () => void;
+  onOpenSettings?: (category?: SettingsCategory) => void;
 }
 
 function KairoMark({ size = 24 }: { size?: number }) {
-  return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size,
-        background: `linear-gradient(135deg, ${ACCENT}, #55409f)`,
-        flexShrink: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        boxShadow: "0 1px 2px rgba(44, 33, 24, 0.2)",
-      }}
-    >
-      <svg width={size * 0.55} height={size * 0.55} viewBox="0 0 16 16" fill="none">
-        <path d="M3 11 C 5 7, 7 13, 8 9 S 11 7, 13 11" stroke="var(--color-bg-base)" strokeWidth="1.6" fill="none" strokeLinecap="round" />
-        <circle cx="11.5" cy="5" r="1.5" fill="var(--color-bg-base)" />
-      </svg>
-    </div>
-  );
+  // Mobile's quiet settings-kairo glyph instead of the old gradient coin.
+  return <KairoMarkGlyph size={size} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />;
 }
 
 function PulsingDot({ color, size = 5 }: { color: string; size?: number }) {
@@ -206,8 +198,8 @@ function KairoPlaceholderOverlay({ text, phase }: { text: string; phase: TypingP
           width: 1,
           height: 17,
           marginLeft: 3,
-          background: "rgba(103, 83, 199, 0.82)",
-          boxShadow: "0 0 10px rgba(103, 83, 199, 0.35)",
+          background: "rgba(var(--color-accent-primary-rgb), 0.82)",
+          boxShadow: "0 0 10px rgba(var(--color-accent-primary-rgb), 0.35)",
           opacity: isWaiting ? undefined : 1,
           animation: isWaiting ? "kairoCaretBlink 1.05s steps(1, end) infinite" : "none",
         }}
@@ -235,7 +227,7 @@ function KairoThinking() {
         style={{
           width: 130,
           height: 12,
-          background: "linear-gradient(90deg, var(--color-text-muted) 0%, #ededf2 42%, var(--color-text-muted) 78%)",
+          background: "linear-gradient(90deg, var(--color-text-muted) 0%, rgba(var(--color-accent-primary-rgb), 0.28) 42%, var(--color-text-muted) 78%)",
           backgroundSize: "220% 100%",
           WebkitBackgroundClip: "text",
           backgroundClip: "text",
@@ -605,53 +597,57 @@ export function Kairo({ onActiveChange, tasks, inboxTasks, onOpenSettings }: Kai
                 <div style={{ flex: 1 }} />
                 <button
                   title="Open settings"
-                  onClick={onOpenSettings}
-                  style={{ width: 26, height: 26, borderRadius: 4, background: "var(--color-fill-faint)", border: "1px solid var(--color-border-default)", color: isKairoConfigured(config) ? "var(--color-text-secondary)" : ACCENT, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}
+                  aria-label="Open settings"
+                  onClick={() => onOpenSettings?.("kairo")}
+                  style={{ width: 26, height: 26, borderRadius: 7, background: "var(--color-fill-faint)", border: "1px solid var(--color-border-default)", color: isKairoConfigured(config) ? "var(--color-text-secondary)" : "var(--color-accent-primary)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
                 >
-                  ⚙
+                  <AppSettingsGlyph size={13} />
                 </button>
                 <button
                   onClick={() => setOpen(false)}
                   aria-label="Minimize"
-                  style={{ width: 26, height: 26, borderRadius: 4, background: "var(--color-fill-faint)", border: "1px solid var(--color-border-default)", color: "var(--color-text-muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}
+                  style={{ width: 26, height: 26, borderRadius: 7, background: "var(--color-fill-faint)", border: "1px solid var(--color-border-default)", color: "var(--color-text-muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
                 >
-                  —
+                  <ChevronDownIcon size={14} strokeWidth={2} />
                 </button>
               </div>
 
               {!isKairoConfigured(config) && (
-                <div
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    onOpenSettings?.("kairo");
+                  }}
+                  aria-label="Set up Kairo"
                   style={{
                     position: "relative",
                     margin: "14px 20px 0 24px",
                     padding: "11px 12px",
-                    background: "var(--color-fill-faint)",
-                    border: "1px solid var(--color-border-subtle)",
-                    borderRadius: 4,
+                    background: "var(--color-warning-muted)",
+                    border: "1px solid var(--color-warning)",
+                    borderRadius: 8,
                     display: "flex",
                     alignItems: "center",
                     gap: 10,
+                    cursor: "pointer",
+                    textAlign: "left",
+                    transition: tx(["background-color"], "instant"),
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background =
+                      "rgba(128, 87, 18, 0.2)";
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background =
+                      "var(--color-warning-muted)";
                   }}
                 >
-                  <div style={{ flex: 1, fontSize: 12, color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
-                    Add your provider format, API key, endpoint URL, and model in Settings before using Kairo.
-                  </div>
-                  <button
-                    onClick={onOpenSettings}
-                    style={{
-                      padding: "6px 10px",
-                      background: ACCENT_SOFT,
-                      border: "1px solid rgba(103, 83, 199, 0.35)",
-                      borderRadius: 3,
-                      color: ACCENT,
-                      fontSize: 11,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
-                  >
-                    OPEN
-                  </button>
-                </div>
+                  <KairoKeyGlyph size={16} style={{ color: "var(--color-warning)", flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: 12, color: "var(--color-text-primary)", lineHeight: 1.5 }}>
+                    Open Settings → Kairo and finish provider setup
+                  </span>
+                  <span style={{ color: "var(--color-warning)", fontFamily: "var(--font-mono)", fontSize: 12 }}>→</span>
+                </button>
               )}
 
               {/* Messages */}
@@ -691,7 +687,7 @@ export function Kairo({ onActiveChange, tasks, inboxTasks, onOpenSettings }: Kai
                         transition: tx(["background-color", "border-color"], "instant"),
                       }}
                       onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(103, 83, 199, 0.55)";
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(var(--color-accent-primary-rgb), 0.55)";
                         (e.currentTarget as HTMLButtonElement).style.background = ACCENT_SOFT;
                       }}
                       onMouseLeave={(e) => {
@@ -765,19 +761,21 @@ export function Kairo({ onActiveChange, tasks, inboxTasks, onOpenSettings }: Kai
                 onClick={() => sendMessage(val.trim())}
                 disabled={!val.trim()}
                 style={{
-                  padding: "8px 13px",
-                  fontSize: 11,
+                  padding: "8px 16px",
+                  minWidth: 64,
+                  fontSize: 11.5,
                   fontFamily: "var(--font-sans)",
                   fontWeight: 600,
-                  color: val.trim() ? "var(--color-bg-base)" : "var(--color-text-muted)",
+                  letterSpacing: "0.04em",
+                  color: "var(--color-text-inverse)",
                   background: val.trim() ? ACCENT : "var(--color-border-subtle)",
                   border: "none",
-                  borderRadius: 4,
+                  borderRadius: 8,
                   cursor: val.trim() ? "pointer" : "not-allowed",
                   transition: tx(["background-color", "color"], "instant"),
                 }}
               >
-                SEND
+                Send
               </button>
             ) : (
               <kbd>⌘J</kbd>
@@ -803,7 +801,7 @@ function KairoMsg({
   if (m.from === "me") {
     return (
       <div style={{ alignSelf: "flex-end", maxWidth: "78%" }}>
-        <div style={{ padding: "11px 13px", background: "rgba(88, 68, 184, 0.16)", color: "#e8e8ef", border: "1px solid rgba(103, 83, 199, 0.28)", borderLeft: `3px solid ${ACCENT}`, borderRadius: 4, fontSize: 13, lineHeight: 1.5 }}>
+        <div style={{ padding: "11px 13px", background: "var(--color-accent-primary-muted)", color: "var(--color-text-primary)", border: "1px solid rgba(var(--color-accent-primary-rgb), 0.28)", borderLeft: `3px solid ${ACCENT}`, borderRadius: 4, fontSize: 13, lineHeight: 1.5 }}>
           {m.text}
         </div>
       </div>

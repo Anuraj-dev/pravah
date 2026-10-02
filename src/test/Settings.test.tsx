@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
-import { Settings } from "../components/Settings";
+import { SettingsPage } from "../components/settings/SettingsPage";
 
 const upsertIntegrationMock = vi.fn();
 const enqueueGmailCandidateMock = vi.fn();
@@ -40,6 +40,9 @@ vi.mock("framer-motion", () => ({
     ),
     button: ({ children, ...props }: ButtonHTMLAttributes<HTMLButtonElement>) => (
       <button {...props}>{children}</button>
+    ),
+    span: ({ children, ...props }: HTMLAttributes<HTMLSpanElement>) => (
+      <span {...props}>{children}</span>
     ),
   },
 }));
@@ -149,7 +152,11 @@ vi.mock("../components/useToast", () => ({
   }),
 }));
 
-describe("Settings", () => {
+async function openCategory(name: string) {
+  fireEvent.click(screen.getByRole("button", { name: `Open ${name} settings` }));
+}
+
+describe("SettingsPage", () => {
   beforeEach(() => {
     upsertIntegrationMock.mockReset();
     upsertIntegrationMock.mockResolvedValue(undefined);
@@ -174,10 +181,30 @@ describe("Settings", () => {
     showSuccessMock.mockReset();
   });
 
-  it("shows explicit review queue guidance and no About section", () => {
-    render(<Settings onClose={vi.fn()} />);
+  it("renders the nine mobile-parity categories in the rail", () => {
+    render(<SettingsPage tasks={[]} onBack={vi.fn()} />);
 
-    expect(screen.getByText("Your Task Review Queue")).toBeInTheDocument();
+    for (const title of [
+      "Kairo",
+      "Access tokens",
+      "Sync",
+      "Reminders",
+      "Interaction",
+      "Appearance",
+      "Data & diagnostics",
+      "Account",
+      "About",
+    ]) {
+      expect(screen.getByRole("button", { name: `Open ${title} settings` })).toBeInTheDocument();
+    }
+    expect(screen.getByTestId("settings-page")).toBeInTheDocument();
+  });
+
+  it("shows explicit review queue guidance in the Sync section", async () => {
+    render(<SettingsPage tasks={[]} onBack={vi.fn()} />);
+    await openCategory("Sync");
+
+    expect(await screen.findByText("Your Task Review Queue")).toBeInTheDocument();
     expect(
       screen.getByText(/Gmail suggestions wait here for your approval/i)
     ).toBeInTheDocument();
@@ -186,13 +213,13 @@ describe("Settings", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Detected deadline: 2026-04-12")).toBeInTheDocument();
     expect(screen.getByText("From: pm@example.com")).toBeInTheDocument();
-    expect(screen.queryByText(/about/i)).not.toBeInTheDocument();
   });
 
   it("passes optional schedule date when approving a review item", async () => {
-    render(<Settings onClose={vi.fn()} />);
+    render(<SettingsPage tasks={[]} onBack={vi.fn()} />);
+    await openCategory("Sync");
 
-    const scheduleInput = screen.getByLabelText(/Schedule date on approve/i);
+    const scheduleInput = await screen.findByLabelText(/Schedule date on approve/i);
     fireEvent.change(scheduleInput, { target: { value: "2026-04-10" } });
 
     fireEvent.click(screen.getByRole("button", { name: "Approve" }));
@@ -206,9 +233,10 @@ describe("Settings", () => {
   });
 
   it("preserves accountEmail when persisting calendar toggle state", async () => {
-    render(<Settings onClose={vi.fn()} />);
+    render(<SettingsPage tasks={[]} onBack={vi.fn()} />);
+    await openCategory("Sync");
 
-    const calendarLabel = screen.getByText("Google Calendar").closest("label");
+    const calendarLabel = await screen.findByText("Google Calendar").then((el) => el.closest("label"));
     const calendarToggle = calendarLabel?.querySelector("button");
     expect(calendarToggle).toBeTruthy();
 
@@ -225,7 +253,8 @@ describe("Settings", () => {
   });
 
   it("passes selected calendar IDs and fullResync flag when syncing", async () => {
-    render(<Settings onClose={vi.fn()} />);
+    render(<SettingsPage tasks={[]} onBack={vi.fn()} />);
+    await openCategory("Sync");
 
     await waitFor(() => {
       expect(screen.getByText("Team")).toBeInTheDocument();
@@ -244,7 +273,8 @@ describe("Settings", () => {
 
   it("preserves stored calendar selection during hydration", async () => {
     localStorage.setItem("pravah_google_calendar_selection", JSON.stringify(["team@example.com"]));
-    render(<Settings onClose={vi.fn()} />);
+    render(<SettingsPage tasks={[]} onBack={vi.fn()} />);
+    await openCategory("Sync");
 
     await waitFor(() => {
       expect(screen.getByText("Team")).toBeInTheDocument();
@@ -262,7 +292,8 @@ describe("Settings", () => {
   });
 
   it("issues a bootstrap token and shows the one-time value", async () => {
-    render(<Settings onClose={vi.fn()} />);
+    render(<SettingsPage tasks={[]} onBack={vi.fn()} />);
+    await openCategory("Access tokens");
 
     fireEvent.click(screen.getByRole("button", { name: "Issue Bootstrap Token" }));
 
@@ -279,9 +310,10 @@ describe("Settings", () => {
   });
 
   it("requires explicit opt-in before issuing task write scope", async () => {
-    render(<Settings onClose={vi.fn()} />);
+    render(<SettingsPage tasks={[]} onBack={vi.fn()} />);
+    await openCategory("Access tokens");
 
-    fireEvent.click(screen.getByRole("checkbox", { name: /Allow task writes/i }));
+    fireEvent.click(screen.getByRole("switch", { name: /Allow task writes/i }));
     fireEvent.click(screen.getByRole("button", { name: "Issue Bootstrap Token" }));
 
     await waitFor(() => {
@@ -294,9 +326,10 @@ describe("Settings", () => {
   });
 
   it("revokes an existing automation credential", async () => {
-    render(<Settings onClose={vi.fn()} />);
+    render(<SettingsPage tasks={[]} onBack={vi.fn()} />);
+    await openCategory("Access tokens");
 
-    const revokeButtons = screen.getAllByRole("button", { name: "Revoke" });
+    const revokeButtons = await screen.findAllByRole("button", { name: "Revoke" });
     expect(revokeButtons[0]).toBeDefined();
     fireEvent.click(revokeButtons[0] as HTMLButtonElement);
 
@@ -305,5 +338,18 @@ describe("Settings", () => {
         credentialId: "cred_1",
       });
     });
+  });
+
+  it("exposes Kairo provider rows with brand marks and expands the editor", async () => {
+    render(<SettingsPage tasks={[]} onBack={vi.fn()} initialCategory="kairo" />);
+
+    expect(screen.getByText("Kairo providers")).toBeInTheDocument();
+    expect(screen.getAllByText("Anthropic").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("OpenAI").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Gemini/).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getAllByText("Anthropic")[0]!);
+    expect(await screen.findByText("Save credentials")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Paste your provider key")).toBeInTheDocument();
   });
 });

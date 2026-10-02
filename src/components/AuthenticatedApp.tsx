@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import {
   DndContext,
@@ -26,6 +26,7 @@ import { useAppKeyboardShortcuts } from "../hooks/useAppKeyboardShortcuts";
 import { useAppOverlays } from "../hooks/useAppOverlays";
 import { useWebReminders } from "../hooks/useWebReminders";
 import type { AppPage } from "./TopNavbar";
+import type { SettingsCategory } from "./settings/SettingsPage";
 import { useBootstrapUser } from "../hooks/useBootstrapUser";
 import { useToast } from "./useToast";
 import { TopNavbar } from "./TopNavbar";
@@ -39,30 +40,28 @@ const TaskPopup = lazy(() =>
 const QuickAdd = lazy(() =>
   import("./QuickAdd").then((module) => ({ default: module.QuickAdd }))
 );
-const Settings = lazy(() =>
-  import("./Settings").then((module) => ({ default: module.Settings }))
+const SettingsPage = lazy(() =>
+  import("./settings/SettingsPage").then((module) => ({ default: module.SettingsPage }))
 );
 
 export function AuthenticatedApp() {
   const webGoalsLinkingEnabled = isWebGoalsLinkingEnabled();
   const [activePage, setActivePage] = useState<AppPage>(() => {
     const saved = window.sessionStorage.getItem("pravah_active_page");
-    if (saved === "goals" || saved === "insights") return saved;
+    if (saved === "goals" || saved === "insights" || saved === "settings") return saved;
     return "timeline";
   });
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
   const [kairoActive, setKairoActive] = useState(false);
-  const {
-    selectedTask,
-    showQuickAdd,
-    showSettings,
-    openTaskPopup,
-    closeTaskPopup,
-    openQuickAdd,
-    closeQuickAdd,
-    openSettings,
-    closeSettings,
-  } = useAppOverlays();
+  // Which settings category a deep link (e.g. Kairo's "finish setup" banner)
+  // should land on. Plain header navigation keeps the last seed.
+  const [settingsSeed, setSettingsSeed] = useState<{ category: SettingsCategory; nonce: number }>({
+    category: "kairo",
+    nonce: 0,
+  });
+  const lastWorkspacePageRef = useRef<AppPage>("timeline");
+  const { selectedTask, showQuickAdd, openTaskPopup, closeTaskPopup, openQuickAdd, closeQuickAdd } =
+    useAppOverlays();
   const { isAuthenticated } = useConvexAuth();
   const bootstrapReady = useBootstrapUser(isAuthenticated);
   const { showToast, showError, showSuccess } = useToast();
@@ -122,6 +121,9 @@ export function AuthenticatedApp() {
 
   const navigate = useCallback(
     (next: AppPage) => {
+      if (next !== "settings" && activePage !== "settings") {
+        lastWorkspacePageRef.current = next;
+      }
       if (next === activePage) return;
       type DocVT = Document & {
         startViewTransition?: (cb: () => void) => unknown;
@@ -301,11 +303,7 @@ export function AuthenticatedApp() {
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
       <GoogleCallback />
       <div style={{ transition: "opacity var(--dur-slow) var(--ease-out-expo)", ...fade }}>
-        <TopNavbar
-          activePage={activePage}
-          onNavigate={navigate}
-          onOpenSettings={openSettings}
-        />
+        <TopNavbar activePage={activePage} onNavigate={navigate} />
       </div>
       <DndContext
         sensors={sensors}
@@ -318,7 +316,14 @@ export function AuthenticatedApp() {
           style={{ transition: "opacity var(--dur-slow) var(--ease-out-expo)", ...fade }}
         >
           <main className="flex-1 overflow-hidden">
-            {activePage === "timeline" ? (
+            {activePage === "settings" ? (
+              <SettingsPage
+                initialCategory={settingsSeed.category}
+                seedNonce={settingsSeed.nonce}
+                tasks={allTasksForStats}
+                onBack={() => navigate(lastWorkspacePageRef.current)}
+              />
+            ) : activePage === "timeline" ? (
               <Timeline
                 tasksByDate={tasksByDate}
                 allTasks={allTasksForStats}
@@ -349,15 +354,17 @@ export function AuthenticatedApp() {
               />
             )}
           </main>
-          <InboxSidebar
-            tasks={inboxTasks}
-            goalNameByTaskId={goalNameByTaskId}
-            onTaskClick={openTaskPopup}
-            onOpenQuickAdd={openQuickAdd}
-            onScheduleTask={(taskId, targetDate) => void handleInboxSchedule(taskId, targetDate)}
-            onCompleteMany={handleCompleteManyInboxTasks}
-            onDeleteMany={handleDeleteManyInboxTasks}
-          />
+          {activePage !== "settings" && (
+            <InboxSidebar
+              tasks={inboxTasks}
+              goalNameByTaskId={goalNameByTaskId}
+              onTaskClick={openTaskPopup}
+              onOpenQuickAdd={openQuickAdd}
+              onScheduleTask={(taskId, targetDate) => void handleInboxSchedule(taskId, targetDate)}
+              onCompleteMany={handleCompleteManyInboxTasks}
+              onDeleteMany={handleDeleteManyInboxTasks}
+            />
+          )}
         </div>
 
         <DragOverlay
@@ -392,13 +399,15 @@ export function AuthenticatedApp() {
         onActiveChange={setKairoActive}
         tasks={kairoTasks ?? boardTasks}
         inboxTasks={inboxTasks}
-        onOpenSettings={openSettings}
+        onOpenSettings={(category) => {
+          setSettingsSeed((seed) => ({ category: category ?? "kairo", nonce: seed.nonce + 1 }));
+          navigate("settings");
+        }}
       />
 
       <Suspense fallback={null}>
         {selectedTask && <TaskPopup task={selectedTask} onClose={closeTaskPopup} />}
         {showQuickAdd && <QuickAdd onClose={closeQuickAdd} />}
-        {showSettings && <Settings onClose={closeSettings} tasks={allTasksForStats} />}
       </Suspense>
     </div>
   );
