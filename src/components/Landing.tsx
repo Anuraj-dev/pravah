@@ -9,15 +9,13 @@ import { cn } from "../lib/utils";
 
 function useReveal<T extends HTMLElement>() {
   const ref = useRef<T | null>(null);
-  const [shown, setShown] = useState(false);
+  const [shown, setShown] = useState(
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
 
   useEffect(() => {
     const node = ref.current;
-    if (!node) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setShown(true);
-      return;
-    }
+    if (!node || shown) return;
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
@@ -31,7 +29,7 @@ function useReveal<T extends HTMLElement>() {
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, []);
+  }, [shown]);
 
   return { ref, shown };
 }
