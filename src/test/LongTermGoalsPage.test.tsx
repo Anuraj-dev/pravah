@@ -19,7 +19,7 @@ describe("LongTermGoalsPage", () => {
       />
     );
 
-    expect(screen.getByText("Source of truth: Convex goals + goal links.")).toBeInTheDocument();
+    expect(screen.getByText("Goals and task links are server-backed.")).toBeInTheDocument();
     expect(screen.getByText("First")).toBeInTheDocument();
     expect(screen.getByText("Second")).toBeInTheDocument();
     expect(screen.getByText("1/2 done")).toBeInTheDocument();

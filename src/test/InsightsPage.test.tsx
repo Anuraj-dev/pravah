@@ -39,13 +39,9 @@ describe("InsightsPage", () => {
       />
     );
 
-    expect(screen.getByText("Total Tasks")).toBeInTheDocument();
-    expect(screen.getByText("4")).toBeInTheDocument();
+    expect(screen.getByText("Recent momentum")).toBeInTheDocument();
+    expect(screen.getByText("done in 30 days")).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Completed" })).toBeInTheDocument();
-    expect(screen.getByText("Tasks marked done.")).toBeInTheDocument();
-    expect(screen.getByText("Scheduled before today and still open.")).toBeInTheDocument();
-    expect(screen.getByText("Completion Rate")).toBeInTheDocument();
-    expect(screen.getByText("25%")).toBeInTheDocument();
     expect(screen.getByText("Overdue")).toBeInTheDocument();
   });
 
@@ -63,7 +59,7 @@ describe("InsightsPage", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "Completed" }));
 
-    expect(screen.getByText("Completed Tasks")).toBeInTheDocument();
+    expect(screen.getByText("Completion history")).toBeInTheDocument();
     expect(screen.getByText("Another done")).toBeInTheDocument();
     expect(screen.getByText("Complete me")).toBeInTheDocument();
     expect(screen.queryByText("Still open")).not.toBeInTheDocument();

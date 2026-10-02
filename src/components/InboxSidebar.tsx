@@ -3,11 +3,21 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useDndMonitor, useDroppable } from "@dnd-kit/core";
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { CalendarDays, Check, Trash2, X } from "lucide-react";
 import type { Task } from "../types";
 import { INBOX_DROP_ID } from "../lib/taskRules";
-import { formatTaskTime, getLocalDateString } from "../lib/utils";
+import { getLocalDateString } from "../lib/utils";
 import { tx } from "../lib/motion";
+import { goalWash } from "../lib/goalWash";
+import { PriorityPill } from "./ui/priorityPill";
+import {
+  CalendarIcon,
+  CheckIcon,
+  CloseIcon,
+  InboxTrayIcon,
+  PlusIcon,
+  SearchIcon,
+  TrashIcon,
+} from "./ui/icons";
 
 interface InboxSidebarProps {
   tasks: Task[];
@@ -40,6 +50,34 @@ function formatTaskAge(createdAt: number): string {
   return `${mo}mo`;
 }
 
+function GoalPill({ goalName }: { goalName: string }) {
+  const wash = goalWash(goalName);
+  return (
+    <span
+      title={`Goal: ${goalName}`}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        maxWidth: "100%",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+        height: 17,
+        padding: "0 6px",
+        borderRadius: 5,
+        background: wash.background,
+        color: wash.color,
+        fontSize: 10,
+        fontWeight: 600,
+        lineHeight: 1,
+        flexShrink: 1,
+      }}
+    >
+      {goalName}
+    </span>
+  );
+}
+
 function InboxTaskComponent({
   task,
   onClick,
@@ -65,7 +103,6 @@ function InboxTaskComponent({
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [scheduleDate, setScheduleDate] = useState(getLocalDateString());
 
-  const barColor = task.deadline ? "var(--color-deadline)" : "var(--color-accent-primary)";
   const isAgentAdded = task.source === "ai-agent";
   const sourceLabel = task.source ? SOURCE_LABEL[task.source] : null;
   const age = formatTaskAge(task.createdAt);
@@ -86,21 +123,27 @@ function InboxTaskComponent({
         {...attributes}
         {...listeners}
         style={{
-          padding: "7px 10px 7px 14px",
-          background: hover ? "var(--color-fill-soft)" : "var(--color-fill-faint)",
-          border: `1px solid ${hover ? "var(--color-border-default)" : "var(--color-border-subtle)"}`,
-          borderRadius: 4,
-          fontSize: 12,
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+          padding: "10px 11px",
+          background: hover ? "var(--color-bg-floating)" : "var(--color-bg-elevated)",
+          border: `1px solid ${hover ? "var(--color-border-strong)" : "var(--color-border-default)"}`,
+          borderRadius: 10,
+          boxShadow: hover ? "0 3px 10px rgba(44,33,24,0.1)" : "0 1px 2px rgba(44,33,24,0.05)",
+          fontSize: 12.5,
+          fontWeight: 500,
           color: "var(--color-text-primary)",
           cursor: isDragging ? "grabbing" : "grab",
           position: "relative",
-          transition: tx(["background-color", "border-color", "opacity"], "instant"),
+          transition: tx(["background-color", "border-color", "box-shadow", "opacity"], "instant"),
           userSelect: "none",
+          opacity: isDragging ? 0.35 : 1,
         }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: isDragging ? 0.3 : 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.12 }}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: isDragging ? 0.35 : 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.97 }}
+        transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       onClick={(e) => {
@@ -146,91 +189,100 @@ function InboxTaskComponent({
           }}
           style={{
             position: "absolute",
-            top: 9,
-            left: 10,
+            top: 11,
+            left: 11,
             width: 16,
             height: 16,
-            borderRadius: 4,
+            borderRadius: 5,
             border: `1px solid ${selected ? "var(--color-accent-primary)" : "var(--color-border-strong)"}`,
             background: selected ? "var(--color-accent-primary)" : "transparent",
-            color: "var(--color-bg-surface)",
+            color: "var(--color-bg-elevated)",
             display: "grid",
             placeItems: "center",
             cursor: "pointer",
           }}
         >
-          {selected && <Check size={11} strokeWidth={3} />}
+          {selected && <CheckIcon size={11} strokeWidth={3} />}
         </button>
       )}
-      {/* Left bar */}
-      <span
+      <div
         style={{
-          position: "absolute",
-          left: 6,
-          top: "50%",
-          transform: "translateY(-50%)",
-          width: 4,
-          height: "60%",
-          background: barColor,
-          borderRadius: 2,
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 8,
+          paddingLeft: selectMode ? 22 : 0,
         }}
-      />
-      <div className="flex items-center gap-1.5" style={{ paddingLeft: selectMode ? 22 : 0 }}>
-        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {task.title}
-        </span>
-        {goalName && (
-          <span
-            title={`Goal: ${goalName}`}
-            style={{
-              fontSize: 9,
-              color: "var(--color-accent-primary)",
-              fontFamily: "var(--font-mono)",
-              letterSpacing: 0.4,
-              maxWidth: 92,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            ◈ {goalName}
-          </span>
-        )}
-        {isAgentAdded && (
-          <span
-            title="Added by Kairo"
-            style={{ fontSize: 9, color: "var(--color-accent-primary)", fontFamily: "var(--font-mono)", letterSpacing: 0.6 }}
-          >
-            ✦
-          </span>
-        )}
-      </div>
-      {(sourceLabel || age || task.time) && (
-        <div
-          className="tabular"
+      >
+        <span
           style={{
-            marginTop: 3,
-            fontFamily: "var(--font-mono)",
-            fontSize: 9,
-            letterSpacing: 0.6,
-            color: "var(--color-text-muted)",
-            display: "flex",
-            gap: 8,
+            flex: 1,
+            minWidth: 0,
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            lineHeight: 1.35,
+            letterSpacing: -0.1,
           }}
         >
+          {task.title}
+        </span>
+        {task.priority && <PriorityPill priority={task.priority} />}
+      </div>
+      {(goalName || sourceLabel || age || task.time) && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 5,
+            flexWrap: "wrap",
+            paddingLeft: selectMode ? 22 : 0,
+          }}
+        >
+          {goalName && (
+            <span style={{ minWidth: 0, flexShrink: 1, display: "inline-flex" }}>
+              <GoalPill goalName={goalName} />
+            </span>
+          )}
           {sourceLabel && (
-            <span style={{ color: isAgentAdded ? "rgba(103, 83, 199, 0.85)" : "var(--color-text-muted)" }}>
+            <span
+              style={{
+                fontSize: 9,
+                fontFamily: "var(--font-mono)",
+                letterSpacing: 0.7,
+                padding: "2px 5px",
+                borderRadius: 4,
+                lineHeight: 1,
+                color: isAgentAdded ? "var(--color-accent-primary)" : "var(--color-text-dim)",
+                background: isAgentAdded ? "var(--color-accent-primary-muted)" : "var(--color-fill-faint)",
+                flexShrink: 0,
+              }}
+            >
               {sourceLabel}
             </span>
           )}
-          {task.time && <span style={{ color: "var(--color-text-muted)" }}>{formatTaskTime(task.time)}</span>}
-          {age && <span style={{ color: "var(--color-text-dim)" }}>{age}</span>}
+          {task.time && (
+            <span
+              className="tabular"
+              style={{ fontSize: 9.5, fontFamily: "var(--font-mono)", color: "var(--color-text-muted)", flexShrink: 0 }}
+            >
+              {task.time}
+            </span>
+          )}
+          {age && (
+            <span
+              className="tabular"
+              style={{ fontSize: 9.5, fontFamily: "var(--font-mono)", color: "var(--color-text-dim)", flexShrink: 0 }}
+            >
+              {age}
+            </span>
+          )}
         </div>
       )}
       {!selectMode && onSchedule && (
-        <div className="mt-2 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, paddingLeft: selectMode ? 22 : 0 }} onClick={(e) => e.stopPropagation()}>
           {scheduleOpen ? (
-            <div className="flex min-w-0 flex-1 items-center gap-1.5">
+            <div style={{ display: "flex", minWidth: 0, flex: 1, alignItems: "center", gap: 6 }}>
               <input
                 type="date"
                 value={scheduleDate}
@@ -238,7 +290,17 @@ function InboxTaskComponent({
                 onChange={(e) => setScheduleDate(e.target.value)}
                 aria-label={`Schedule ${task.title}`}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="min-w-0 flex-1 rounded-[3px] border border-line bg-fill-soft px-1.5 py-1 text-[10px] text-ink outline-none focus:border-accent/45"
+                style={{
+                  minWidth: 0,
+                  flex: 1,
+                  borderRadius: 6,
+                  border: "1px solid var(--color-border-default)",
+                  background: "var(--color-fill-soft)",
+                  padding: "4px 8px",
+                  fontSize: 11,
+                  color: "var(--color-text-primary)",
+                  outline: "none",
+                }}
               />
               <button
                 type="button"
@@ -249,9 +311,19 @@ function InboxTaskComponent({
                   setScheduleOpen(false);
                 }}
                 aria-label={`Confirm schedule for ${task.title}`}
-                className="rounded-[3px] bg-accent/18 p-1 text-accent hover:bg-accent/28"
+                style={{
+                  display: "grid",
+                  placeItems: "center",
+                  width: 24,
+                  height: 24,
+                  borderRadius: 6,
+                  border: "1px solid var(--color-success)",
+                  background: "var(--color-success-muted)",
+                  color: "var(--color-success)",
+                  cursor: "pointer",
+                }}
               >
-                <Check size={12} />
+                <CheckIcon size={12} strokeWidth={2.4} />
               </button>
               <button
                 type="button"
@@ -261,9 +333,19 @@ function InboxTaskComponent({
                   setScheduleOpen(false);
                 }}
                 aria-label={`Cancel scheduling ${task.title}`}
-                className="rounded-[3px] p-1 text-ink-mute hover:bg-fill-soft hover:text-ink"
+                style={{
+                  display: "grid",
+                  placeItems: "center",
+                  width: 24,
+                  height: 24,
+                  borderRadius: 6,
+                  border: "1px solid var(--color-border-default)",
+                  background: "transparent",
+                  color: "var(--color-text-mute)",
+                  cursor: "pointer",
+                }}
               >
-                <X size={12} />
+                <CloseIcon size={12} strokeWidth={2.2} />
               </button>
             </div>
           ) : (
@@ -275,9 +357,26 @@ function InboxTaskComponent({
                 setScheduleDate(getLocalDateString());
                 setScheduleOpen(true);
               }}
-              className="inline-flex items-center gap-1 rounded-[3px] border border-line px-1.5 py-1 text-[10px] text-ink-mute hover:border-line-strong hover:text-ink"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                height: 24,
+                padding: "0 8px",
+                borderRadius: 6,
+                border: "1px solid var(--color-border-default)",
+                background: "var(--color-bg-floating)",
+                color: "var(--color-text-mute)",
+                fontSize: 10.5,
+                fontWeight: 600,
+                fontFamily: "var(--font-sans)",
+                cursor: "pointer",
+                transition: tx("border-color", "instant"),
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--color-accent-primary)")}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--color-border-default)")}
             >
-              <CalendarDays size={11} />
+              <CalendarIcon size={11} strokeWidth={1.8} />
               Schedule
             </button>
           )}
@@ -407,63 +506,71 @@ function InboxSidebarComponent({
         flexDirection: "column",
         height: "100%",
         width: 300,
-        background: isOver ? "rgba(88, 68, 184, 0.1)" : "var(--color-bg-surface)",
+        background: isOver ? "var(--color-accent-dim)" : "var(--color-bg-surface)",
         borderLeft: "1px solid var(--color-border-subtle)",
-        outline: isOver ? "1px dashed var(--color-border-focus)" : "none",
-        outlineOffset: -2,
+        outline: isOver ? "1px dashed var(--color-accent-primary)" : "none",
+        outlineOffset: -3,
         transition: tx("background-color", "fast"),
       }}
     >
       {/* Header */}
       <div
-        className="flex items-start gap-2 px-[14px] py-3"
-        style={{ borderBottom: "1px solid var(--color-border-subtle)" }}
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 8,
+          padding: "14px 16px 12px",
+          borderBottom: "1px solid var(--color-border-subtle)",
+        }}
       >
-        <div className="flex flex-col gap-0.5">
-          <div className="flex items-center gap-2">
-            <span style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>Inbox</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+            <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: -0.2, color: "var(--color-text-primary)", fontFamily: "var(--font-sans)" }}>
+              Inbox
+            </span>
             <span
               className="tabular"
               style={{
-                fontSize: 11,
-                padding: "1px 7px",
+                fontSize: 10.5,
+                height: 18,
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "0 7px",
                 borderRadius: 99,
                 background: "var(--color-accent-primary-muted)",
                 color: "var(--color-accent-primary)",
                 fontFamily: "var(--font-mono)",
+                fontWeight: 500,
               }}
             >
               {tasks.length}
             </span>
           </div>
-          {kairoCount > 0 && (
-            <span
-              className="tabular"
-              style={{
-                fontSize: 9,
-                fontFamily: "var(--font-mono)",
-                color: "var(--color-text-muted)",
-                letterSpacing: 0.6,
-              }}
-            >
-              {kairoCount} from kairo
-            </span>
-          )}
+          <span
+            style={{
+              fontSize: 9,
+              fontFamily: "var(--font-mono)",
+              color: "var(--color-text-dim)",
+              letterSpacing: 1,
+            }}
+          >
+            {kairoCount > 0 ? `${kairoCount} FROM KAIRO · TO TRIAGE` : "TO TRIAGE"}
+          </span>
         </div>
-        <div className="flex-1" />
+        <div style={{ flex: 1 }} />
         {tasks.length > 0 && (selectMode ? (
           <button
             type="button"
             onClick={exitSelectMode}
-            className="inline-flex items-center gap-1 rounded-[4px] border border-line px-2 py-1 text-[10px] text-ink-mute hover:text-ink"
+            className="inline-flex items-center gap-1 rounded-[6px] border border-line px-2 py-1 text-[10px] text-ink-mute hover:text-ink"
           >
-            <X size={11} /> Cancel
+            <CloseIcon size={11} strokeWidth={2.2} /> Cancel
           </button>
         ) : (
           <button
             type="button"
             onClick={() => setSelectMode(true)}
-            className="rounded-[4px] border border-line px-2 py-1 text-[10px] text-ink-mute hover:border-line-strong hover:text-ink"
+            className="rounded-[6px] border border-line px-2 py-1 text-[10px] text-ink-mute hover:border-line-strong hover:text-ink"
           >
             Select
           </button>
@@ -471,33 +578,50 @@ function InboxSidebarComponent({
       </div>
 
       {/* Search */}
-      <div className="px-2.5 py-2" style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search inbox…"
-          style={{
-            width: "100%",
-            background: "rgba(39, 30, 22, 0.18)",
-            border: "1px solid var(--color-border-default)",
-            boxShadow: "inset 0 1px 0 rgba(39, 30, 22, 0.28)",
-            borderRadius: 4,
-            padding: "6px 10px",
-            color: "var(--color-text-primary)",
-            fontSize: 12,
-            outline: "none",
-            transition: tx(["border-color", "background-color"], "instant"),
-          }}
-          onFocus={(e) => {
-            e.target.style.borderColor = "var(--color-border-focus)";
-            e.target.style.background = "rgba(39, 30, 22, 0.28)";
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = "var(--color-border-default)";
-            e.target.style.background = "rgba(39, 30, 22, 0.18)";
-          }}
-        />
-        <div className="mt-2 flex flex-wrap gap-1" role="group" aria-label="Inbox priority filter">
+      <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--color-border-subtle)" }}>
+        <div style={{ position: "relative" }}>
+          <span
+            style={{
+              position: "absolute",
+              left: 9,
+              top: "50%",
+              transform: "translateY(-50%)",
+              color: "var(--color-text-dim)",
+              display: "grid",
+              placeItems: "center",
+              pointerEvents: "none",
+            }}
+          >
+            <SearchIcon size={13} strokeWidth={1.8} />
+          </span>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search inbox…"
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              background: "var(--color-fill-soft)",
+              border: "1px solid var(--color-border-default)",
+              borderRadius: 8,
+              padding: "7px 10px 7px 28px",
+              color: "var(--color-text-primary)",
+              fontSize: 12,
+              fontFamily: "var(--font-sans)",
+              outline: "none",
+              transition: tx(["border-color", "background-color"], "instant"),
+            }}
+            onFocus={(e) => {
+              e.target.style.borderColor = "var(--color-accent-primary)";
+              e.target.style.background = "var(--color-bg-floating)";
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = "var(--color-border-default)";
+              e.target.style.background = "var(--color-fill-soft)";
+            }}
+          />
+        </div>
+        <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 4 }} role="group" aria-label="Inbox priority filter">
           {([
             ["all", "All"],
             ["p1", "P1"],
@@ -510,9 +634,19 @@ function InboxSidebarComponent({
               type="button"
               aria-pressed={filter === value}
               onClick={() => setFilter(value)}
-              className={filter === value
-                ? "rounded-[3px] border border-accent/45 bg-accent-deep/20 px-2 py-1 text-[10px] text-accent"
-                : "rounded-[3px] border border-line-subtle px-2 py-1 text-[10px] text-ink-dim hover:text-ink-soft"}
+              style={{
+                height: 22,
+                padding: "0 8px",
+                borderRadius: 6,
+                border: `1px solid ${filter === value ? "var(--color-accent-primary)" : "var(--color-border-default)"}`,
+                background: filter === value ? "var(--color-accent-primary-muted)" : "var(--color-bg-elevated)",
+                color: filter === value ? "var(--color-accent-primary)" : "var(--color-text-dim)",
+                fontSize: 10,
+                fontWeight: 600,
+                fontFamily: filter === value ? "var(--font-mono)" : "var(--font-sans)",
+                cursor: "pointer",
+                transition: tx(["border-color", "background-color"], "instant"),
+              }}
             >
               {label}
             </button>
@@ -522,8 +656,14 @@ function InboxSidebarComponent({
 
       {/* Task list */}
       <div
-        className="flex-1 overflow-y-auto"
-        style={{ padding: "10px", display: "flex", flexDirection: "column", gap: 5 }}
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          padding: 10,
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+        }}
       >
         <SortableContext
           items={query || filter !== "all" || selectMode ? [] : filtered.map(t => t._id)}
@@ -550,10 +690,29 @@ function InboxSidebarComponent({
           </AnimatePresence>
         </SortableContext>
         {filtered.length === 0 && (
-          <div
-            style={{ textAlign: "center", padding: "40px 10px", fontSize: 12, color: "var(--color-text-muted)" }}
-          >
-            {query ? "No matches." : "Inbox is clear."}
+          <div style={{ textAlign: "center", padding: "44px 16px" }}>
+            <span
+              aria-hidden
+              style={{
+                width: 52,
+                height: 52,
+                margin: "0 auto 12px",
+                display: "grid",
+                placeItems: "center",
+                borderRadius: 99,
+                border: "1px solid var(--color-border-default)",
+                background: "var(--color-bg-floating)",
+                color: "var(--color-text-dim)",
+              }}
+            >
+              <InboxTrayIcon size={24} strokeWidth={1.6} />
+            </span>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", fontFamily: "var(--font-sans)" }}>
+              {query ? "No matches." : "Everything has a place."}
+            </div>
+            <div style={{ marginTop: 4, fontSize: 12, color: "var(--color-text-muted)", fontFamily: "var(--font-sans)" }}>
+              {query ? "Try a different search." : "Capture a task to fill the inbox."}
+            </div>
           </div>
         )}
       </div>
@@ -562,32 +721,62 @@ function InboxSidebarComponent({
       <div style={{ padding: 10, borderTop: "1px solid var(--color-border-subtle)" }}>
         {selectMode && (
           <>
-            <div className="mb-2 flex items-center justify-between gap-2">
+            <div style={{ marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
               <button
                 type="button"
                 onClick={toggleSelectAll}
-                className="text-[10px] text-ink-mute hover:text-ink"
+                style={{ fontSize: 10.5, fontWeight: 600, color: "var(--color-accent-primary)", cursor: "pointer", background: "none", border: "none" }}
               >
                 {allFilteredSelected ? "Deselect all" : "Select all"}
               </button>
-              <span className="text-[10px] text-ink-dim">{visibleSelectedIds.size} selected</span>
+              <span className="tabular" style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--color-text-dim)" }}>
+                {visibleSelectedIds.size} selected
+              </span>
             </div>
-            <div className="mb-2 grid grid-cols-2 gap-1.5">
+            <div style={{ marginBottom: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
               <button
                 type="button"
                 disabled={visibleSelectedIds.size === 0 || !onDeleteMany}
                 onClick={() => void runBulk(onDeleteMany)}
-                className="inline-flex items-center justify-center gap-1 rounded-[4px] border border-error/30 px-2 py-2 text-[10px] text-error disabled:cursor-not-allowed disabled:opacity-40"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 5,
+                  height: 32,
+                  borderRadius: 8,
+                  border: "1px solid var(--color-error)",
+                  background: "var(--color-error-muted)",
+                  color: "var(--color-error)",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  fontFamily: "var(--font-sans)",
+                  cursor: "pointer",
+                }}
               >
-                <Trash2 size={11} /> Delete
+                <TrashIcon size={12} strokeWidth={2} /> Delete
               </button>
               <button
                 type="button"
                 disabled={visibleSelectedIds.size === 0 || !onCompleteMany}
                 onClick={() => void runBulk(onCompleteMany)}
-                className="inline-flex items-center justify-center gap-1 rounded-[4px] border border-success/30 px-2 py-2 text-[10px] text-success disabled:cursor-not-allowed disabled:opacity-40"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 5,
+                  height: 32,
+                  borderRadius: 8,
+                  border: "1px solid var(--color-success)",
+                  background: "var(--color-success-muted)",
+                  color: "var(--color-success)",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  fontFamily: "var(--font-sans)",
+                  cursor: "pointer",
+                }}
               >
-                <Check size={11} /> Mark done
+                <CheckIcon size={12} strokeWidth={2.4} /> Mark done
               </button>
             </div>
           </>
@@ -597,22 +786,26 @@ function InboxSidebarComponent({
             onClick={onOpenQuickAdd}
             style={{
               width: "100%",
-              padding: "8px 12px",
-              borderRadius: 4,
-              border: "1px solid var(--color-border-focus)",
-              background: "var(--color-accent-primary-muted)",
-              color: "var(--color-accent-primary)",
-              fontSize: 12,
-              fontWeight: 500,
+              height: 40,
+              borderRadius: 10,
+              border: "1px solid var(--color-accent-primary)",
+              background: "var(--color-accent-primary)",
+              color: "var(--color-bg-floating)",
+              fontSize: 13,
+              fontWeight: 600,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               gap: 6,
               fontFamily: "var(--font-sans)",
+              boxShadow: "0 1px 2px rgba(44,33,24,0.14)",
+              transition: tx("background-color", "instant"),
             }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-accent-primary-hover)")}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "var(--color-accent-primary)")}
           >
-            <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> New task
+            <PlusIcon size={14} strokeWidth={2.4} /> New task
           </button>
         )}
       </div>

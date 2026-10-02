@@ -240,6 +240,17 @@ export function AuthenticatedApp() {
     [moveTask, showError, showSuccess]
   );
 
+  const handleToggleComplete = useCallback(
+    async (task: Task) => {
+      try {
+        await completeTask({ taskId: task._id });
+      } catch {
+        showError("Could not complete the task");
+      }
+    },
+    [completeTask, showError]
+  );
+
   const handleCompleteManyInboxTasks = useCallback(
     async (taskIds: Task["_id"][]) => {
       try {
@@ -315,6 +326,7 @@ export function AuthenticatedApp() {
                 onTaskClick={openTaskPopup}
                 onOpenQuickAdd={openQuickAdd}
                 onRescheduleTask={(taskId, targetDate) => void handleInboxSchedule(taskId, targetDate)}
+                onToggleComplete={(task) => void handleToggleComplete(task)}
               />
             ) : activePage === "goals" ? (
               <LongTermGoalsPage

@@ -79,7 +79,7 @@ export function LongTermGoalsPage({
     localStorage.setItem(STORAGE_KEY, JSON.stringify(goals));
   }, [goals, serverBacked]);
 
-  const displayGoals = useMemo(() => {
+  const displayGoals = useMemo<GoalReadModel[]>(() => {
     if (serverBacked && serverGoals) {
       return [...serverGoals].sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
     }
@@ -165,25 +165,23 @@ export function LongTermGoalsPage({
         <section className="mb-6 border-b border-line-subtle pb-5">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <div className="mb-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-ink-mute">
-                <Target size={14} />
-                Long Horizon
+              <div
+                className="mb-2 flex items-center gap-2 text-ink-dim"
+                style={{ fontSize: 9.5, fontFamily: "var(--font-mono)", letterSpacing: 1.2, textTransform: "uppercase" }}
+              >
+                <Target size={12} strokeWidth={1.8} />
+                Long horizon · {displayGoals.length} active
               </div>
-              <h1 className="text-2xl font-semibold text-ink">Long-term Goals</h1>
+              <h1 className="text-2xl font-semibold tracking-[-0.02em] text-ink">Long-term Goals</h1>
             </div>
-            <div className="tabular rounded-[6px] border border-line-subtle bg-fill-faint px-3 py-2 text-xs text-ink-soft">
-              {displayGoals.length} active
-            </div>
+            {serverBacked && (
+              <p className="text-xs text-ink-mute">Goals and task links are server-backed.</p>
+            )}
           </div>
-          {serverBacked && (
-            <p className="mt-3 text-xs text-ink-mute">
-              Goals and task links are server-backed.
-            </p>
-          )}
         </section>
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_220px]">
-          <section className="rounded-lg border border-line-subtle bg-fill-faint p-4">
+          <section>
             {!readOnly && (
               <div className="mb-4 flex items-center gap-2">
                 <input
@@ -196,7 +194,7 @@ export function LongTermGoalsPage({
                   placeholder="Add a long-term goal..."
                   disabled={serverBusy}
                   className={cn(
-                    "min-w-0 flex-1 rounded-[6px] border border-line bg-fill-soft",
+                    "min-w-0 flex-1 rounded-[10px] border border-line bg-fill-soft",
                     "px-3 py-2.5 text-sm text-ink placeholder:text-ink-mute",
                     "outline-none transition-colors focus:border-accent/45"
                   )}
@@ -206,10 +204,10 @@ export function LongTermGoalsPage({
                   onClick={() => void addGoal()}
                   disabled={serverBusy}
                   className={cn(
-                    "grid h-10 w-10 place-items-center rounded-[6px]",
+                    "grid h-10 w-10 place-items-center rounded-[10px]",
                     "border border-accent/40",
-                    "bg-accent-deep/20 text-accent",
-                    "transition-colors hover:bg-accent-deep/28"
+                    "bg-accent/15 text-accent",
+                    "transition-colors hover:bg-accent/25"
                   )}
                   aria-label="Add long-term goal"
                 >
@@ -220,14 +218,14 @@ export function LongTermGoalsPage({
             {serverError && <p className="mb-3 text-xs text-error">{serverError}</p>}
 
             {displayGoals.length === 0 ? (
-              <div className="rounded-[6px] border border-dashed border-line bg-fill-soft px-4 py-10 text-center">
-                <p className="text-sm text-ink-soft">No goals yet.</p>
+              <div className="rounded-[12px] border border-dashed border-line bg-fill-soft px-4 py-12 text-center">
+                <p className="text-sm font-medium text-ink">No goals yet.</p>
                 <p className="mt-1 text-xs text-ink-dim">
                   {serverBacked ? "Add one above to start linking tasks." : "Add one above, then drag to reorder."}
                 </p>
               </div>
             ) : serverBacked ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {displayGoals.map((goal) => {
                   const progress = progressByGoalId?.[goal.id] ?? { total: 0, done: 0 };
                   const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
@@ -235,14 +233,40 @@ export function LongTermGoalsPage({
                     .filter((task) => !isTaskCompleted(task))
                     .sort((a, b) => (a.deadline ?? "\uffff").localeCompare(b.deadline ?? "\uffff"))
                     .slice(0, 2);
+                  const overdue = goal.deadline !== undefined && goal.deadline < new Date().toISOString().slice(0, 10);
                   return (
                     <div
                       key={goal.id}
-                      className="rounded-[6px] border border-line-subtle bg-[var(--color-bg-surface)] px-3 py-3"
+                      className={cn(
+                        "rounded-[12px] border bg-[var(--color-bg-elevated)] px-4 py-3.5",
+                        "shadow-[0_1px_2px_rgba(44,33,24,0.05)] transition-colors",
+                        pct >= 100 && progress.total > 0
+                          ? "border-success/45"
+                          : "border-line-subtle hover:border-line-strong"
+                      )}
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <span className="min-w-0 flex-1 text-sm text-ink break-words">{goal.text}</span>
-                        <span className="tabular text-xs text-ink-mute">
+                        <span className="min-w-0 flex-1 text-[14.5px] font-semibold tracking-[-0.01em] text-ink break-words">
+                          {goal.text}
+                        </span>
+                        {goal.priority && (
+                          <span
+                            className="shrink-0"
+                            style={{
+                              fontSize: 9.5,
+                              fontFamily: "var(--font-mono)",
+                              letterSpacing: 0.4,
+                              padding: "2px 6px",
+                              borderRadius: 5,
+                              lineHeight: 1,
+                              color: goal.priority === "p1" ? "var(--color-error)" : goal.priority === "p2" ? "var(--color-warning)" : "var(--color-success)",
+                              background: goal.priority === "p1" ? "var(--color-error-muted)" : goal.priority === "p2" ? "var(--color-warning-muted)" : "var(--color-success-muted)",
+                            }}
+                          >
+                            {goal.priority.toUpperCase()}
+                          </span>
+                        )}
+                        <span className="tabular shrink-0 text-xs text-ink-mute">
                           {progress.done}/{progress.total} done
                         </span>
                         {onUpdateServerGoal && (
@@ -251,7 +275,7 @@ export function LongTermGoalsPage({
                             onClick={() => beginEdit(goal)}
                             disabled={serverBusy}
                             aria-label={`Edit goal: ${goal.text}`}
-                            className="flex-shrink-0 rounded-[5px] p-1.5 text-ink-dim hover:bg-fill-soft hover:text-ink"
+                            className="flex-shrink-0 rounded-[6px] p-1.5 text-ink-dim hover:bg-fill-soft hover:text-ink"
                           >
                             <Pencil size={13} />
                           </button>
@@ -262,7 +286,7 @@ export function LongTermGoalsPage({
                           disabled={serverBusy}
                           aria-label={`Delete goal: ${goal.text}`}
                           className={cn(
-                            "flex-shrink-0 rounded-[5px] p-1.5",
+                            "flex-shrink-0 rounded-[6px] p-1.5",
                             "text-ink-dim hover:text-error hover:bg-error-muted",
                             "transition-opacity"
                           )}
@@ -270,22 +294,45 @@ export function LongTermGoalsPage({
                           <Trash2 size={13} />
                         </button>
                       </div>
-                      <div className="mt-2 h-1.5 rounded-full bg-fill-soft">
+                      <div
+                        aria-hidden
+                        className="mt-3 overflow-hidden rounded-full"
+                        style={{ height: 4, background: "var(--color-fill-strong)" }}
+                      >
                         <div
-                          className="h-full rounded-full bg-accent"
-                          style={{ width: `${pct}%` }}
+                          style={{
+                            height: "100%",
+                            width: `${pct}%`,
+                            borderRadius: 99,
+                            background: pct >= 100 ? "var(--color-success)" : "var(--color-accent-primary)",
+                            transition: "width 600ms cubic-bezier(0.22, 1, 0.36, 1)",
+                          }}
                         />
                       </div>
+                      {(goal.deadline || goal.description) && (
+                        <div
+                          className="mt-2.5 flex flex-wrap items-center gap-3 text-ink-dim"
+                          style={{ fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: 0.5 }}
+                        >
+                          {goal.deadline && (
+                            <span style={{ color: overdue ? "var(--color-error)" : "var(--color-warning)" }}>
+                              {overdue ? "PAST " : "BY "}
+                              {new Date(`${goal.deadline}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }).toUpperCase()}
+                            </span>
+                          )}
+                          {goal.description && <span className="truncate" style={{ fontFamily: "var(--font-sans)", fontSize: 11, letterSpacing: 0, color: "var(--color-text-muted)" }}>{goal.description}</span>}
+                        </div>
+                      )}
                       {nextTasks.length > 0 && (
-                        <div className="mt-3 border-t border-line-subtle pt-2">
-                          <p className="text-[10px] uppercase tracking-[0.1em] text-ink-dim">Next</p>
-                          <div className="mt-1 space-y-1">
+                        <div className="mt-3 border-t border-line-subtle pt-2.5">
+                          <p className="text-[9.5px] uppercase tracking-[0.12em] text-ink-dim" style={{ fontFamily: "var(--font-mono)" }}>Next up</p>
+                          <div className="mt-1 space-y-0.5">
                             {nextTasks.map((task) => (
                               <button
                                 key={task._id}
                                 type="button"
                                 onClick={() => onOpenTask?.(task)}
-                                className="flex w-full items-center justify-between gap-2 rounded-[3px] px-1 py-1 text-left text-xs text-ink-soft hover:bg-fill-soft hover:text-ink"
+                                className="flex w-full items-center justify-between gap-2 rounded-[6px] px-1.5 py-1 text-left text-xs text-ink-soft hover:bg-fill-soft hover:text-ink"
                               >
                                 <span className="min-w-0 truncate">{task.title}</span>
                                 <span className="shrink-0 text-[10px] text-ink-dim">{task.deadline ?? "Inbox"}</span>
@@ -302,7 +349,7 @@ export function LongTermGoalsPage({
                             placeholder="What does this goal mean?"
                             rows={2}
                             aria-label={`Description for ${goal.text}`}
-                            className="w-full resize-none rounded-[4px] border border-line bg-fill-soft px-2.5 py-2 text-xs text-ink outline-none placeholder:text-ink-dim focus:border-accent/45"
+                            className="w-full resize-none rounded-[8px] border border-line bg-fill-soft px-2.5 py-2 text-xs text-ink outline-none placeholder:text-ink-dim focus:border-accent/45"
                           />
                           <div className="grid grid-cols-2 gap-2">
                             <label className="text-[10px] uppercase tracking-[0.1em] text-ink-dim">
@@ -312,7 +359,7 @@ export function LongTermGoalsPage({
                                 value={editDeadline}
                                 onChange={(event) => setEditDeadline(event.target.value)}
                                 aria-label={`Deadline for ${goal.text}`}
-                                className="mt-1 w-full rounded-[4px] border border-line bg-fill-soft px-2 py-1.5 text-xs normal-case tracking-normal text-ink outline-none focus:border-accent/45"
+                                className="mt-1 w-full rounded-[8px] border border-line bg-fill-soft px-2 py-1.5 text-xs normal-case tracking-normal text-ink outline-none focus:border-accent/45"
                               />
                             </label>
                             <label className="text-[10px] uppercase tracking-[0.1em] text-ink-dim">
@@ -321,7 +368,7 @@ export function LongTermGoalsPage({
                                 value={editPriority ?? ""}
                                 onChange={(event) => setEditPriority((event.target.value || undefined) as "p1" | "p2" | "p3" | undefined)}
                                 aria-label={`Priority for ${goal.text}`}
-                                className="mt-1 w-full rounded-[4px] border border-line bg-fill-soft px-2 py-1.5 text-xs normal-case tracking-normal text-ink outline-none focus:border-accent/45"
+                                className="mt-1 w-full rounded-[8px] border border-line bg-fill-soft px-2 py-1.5 text-xs normal-case tracking-normal text-ink outline-none focus:border-accent/45"
                               >
                                 <option value="">None</option>
                                 <option value="p1">P1</option>
@@ -331,8 +378,8 @@ export function LongTermGoalsPage({
                             </label>
                           </div>
                           <div className="flex justify-end gap-2">
-                            <button type="button" onClick={() => setEditingGoalId(null)} className="rounded-[4px] px-2.5 py-1.5 text-xs text-ink-mute hover:text-ink">Cancel</button>
-                            <button type="button" onClick={() => void saveEdit(goal)} disabled={serverBusy} className="rounded-[4px] bg-accent px-2.5 py-1.5 text-xs font-medium text-canvas disabled:opacity-50">Save goal</button>
+                            <button type="button" onClick={() => setEditingGoalId(null)} className="rounded-[6px] px-2.5 py-1.5 text-xs text-ink-mute hover:text-ink">Cancel</button>
+                            <button type="button" onClick={() => void saveEdit(goal)} disabled={serverBusy} className="rounded-[6px] bg-accent px-2.5 py-1.5 text-xs font-medium text-canvas hover:bg-accent-deep disabled:opacity-50">Save goal</button>
                           </div>
                         </div>
                       )}
@@ -348,9 +395,9 @@ export function LongTermGoalsPage({
                     value={goal}
                     whileDrag={{ scale: 1.01 }}
                     className={cn(
-                      "group flex items-center gap-3 rounded-[6px] border border-line-subtle",
-                      "bg-[var(--color-bg-surface)] px-3 py-3 cursor-grab active:cursor-grabbing",
-                      "shadow-sm transition-colors hover:border-line-strong hover:bg-fill-soft"
+                      "group flex items-center gap-3 rounded-[12px] border border-line-subtle",
+                      "bg-[var(--color-bg-elevated)] px-3 py-3 cursor-grab active:cursor-grabbing",
+                      "shadow-[0_1px_2px_rgba(44,33,24,0.05)] transition-colors hover:border-line-strong hover:bg-fill-soft"
                     )}
                   >
                     <GripVertical size={14} className="flex-shrink-0 text-ink-dim" />
@@ -361,7 +408,7 @@ export function LongTermGoalsPage({
                       onClick={() => void removeGoal(goal.id)}
                       aria-label={`Delete goal: ${goal.text}`}
                       className={cn(
-                        "flex-shrink-0 rounded-[5px] p-1.5",
+                        "flex-shrink-0 rounded-[6px] p-1.5",
                         "text-ink-dim hover:text-error hover:bg-error-muted",
                         "opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
                       )}
@@ -372,17 +419,16 @@ export function LongTermGoalsPage({
                 ))}
               </Reorder.Group>
             )}
-
-            <p className="mt-4 text-xs text-ink-dim">
-              {serverBacked ? "Source of truth: Convex goals + goal links." : "Saved locally in this browser."}
-            </p>
           </section>
 
-          <aside className="rounded-lg border border-line-subtle bg-fill-faint p-4">
-            <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-[6px] bg-accent-deep/14 text-accent">
+          <aside
+            className="self-start rounded-[12px] border border-line-subtle p-4"
+            style={{ background: "var(--color-accent-dim)" }}
+          >
+            <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-[8px] bg-[var(--color-accent-primary-muted)] text-accent">
               <ArrowUpRight size={16} />
             </div>
-            <p className="text-sm font-medium text-ink">Keep it spare</p>
+            <p className="text-sm font-semibold text-ink">Keep it spare</p>
             <p className="mt-2 text-xs leading-5 text-ink-mute">
               This list is for goals that should guide the timeline without becoming daily tasks yet.
             </p>
