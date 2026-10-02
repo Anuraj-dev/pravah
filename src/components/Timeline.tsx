@@ -1,5 +1,5 @@
 import { useRef, useEffect, useMemo, useState, useCallback } from "react";
-import { useConvexConnectionState } from "convex/react";
+import { useConvexConnectionState } from "../lib/data";
 import { GridDayColumn } from "./DayColumn";
 import type { Task } from "../types";
 import { generateDateRange, getLocalDateString } from "../lib/utils";

@@ -7,15 +7,30 @@ import '@fontsource-variable/geist'
 import '@fontsource-variable/geist-mono'
 import './index.css'
 import { App } from './App.tsx'
+import { enterDemo, isDemoMode, wantsDemoFromQuery } from './demo/demoFlag'
+import { setDemoImpl } from './lib/demoBridge'
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <AppErrorBoundary>
-      <ConvexClientProvider>
-        <ToastProvider>
-          <App />
-        </ToastProvider>
-      </ConvexClientProvider>
-    </AppErrorBoundary>
-  </StrictMode>,
-)
+const mount = async () => {
+  if (wantsDemoFromQuery()) enterDemo()
+  if (isDemoMode()) {
+    const [{ installDemoMode }, demoHooks] = await Promise.all([
+      import('./demo/install'),
+      import('./demo/demoHooks'),
+    ])
+    await installDemoMode()
+    setDemoImpl(demoHooks)
+  }
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <AppErrorBoundary>
+        <ConvexClientProvider>
+          <ToastProvider>
+            <App />
+          </ToastProvider>
+        </ConvexClientProvider>
+      </AppErrorBoundary>
+    </StrictMode>,
+  )
+}
+
+void mount()

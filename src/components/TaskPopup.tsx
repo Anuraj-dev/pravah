@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery } from "../lib/data";
 import { api } from "../../convex/_generated/api";
 import type { Task } from "../types";
 import { Button } from "./Button";

@@ -10,7 +10,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "../lib/data";
 import { api } from "../../convex/_generated/api";
 import type { Task } from "../types";
 import { Timeline } from "./Timeline";

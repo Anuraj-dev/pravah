@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useMutation } from "convex/react";
+import { useMutation } from "../lib/data";
 import { api } from "../../convex/_generated/api";
 
 export function useBootstrapUser(enabled: boolean) {
