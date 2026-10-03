@@ -94,7 +94,7 @@ describe("deriveDisplayWorkspace", () => {
     expect(display.visibleTasks.map((task) => task._id)).toEqual(["optimistic"]);
   });
 
-  it("keeps live actions loading until image metadata resolves", () => {
+  it("shows the inbox while image metadata is still loading", () => {
     const display = deriveDisplayWorkspace(
       baseInput({
         loading: {
@@ -107,9 +107,10 @@ describe("deriveDisplayWorkspace", () => {
       })
     );
 
-    expect(display.hasLiveWorkspaceData).toBe(false);
-    expect(display.isActiveListLoading).toBe(true);
-    expect(display.isTimelineTriageReady).toBe(false);
+    expect(display.hasLiveWorkspaceData).toBe(true);
+    expect(display.isActiveListLoading).toBe(false);
+    expect(display.isTimelineTriageReady).toBe(true);
+    expect(display.kairoTasks.map((task) => task._id)).toEqual(["live-inbox"]);
   });
 
   it("uses the workspace corpus as the mutation base on Goals", () => {

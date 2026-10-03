@@ -31,7 +31,28 @@ chmod +x "$WORKDIR/pravah"
 
 export PRAVAH_FAKE_LOG="$WORKDIR/cli.log"
 export PRAVAH_TEST_RESULT="$WORKDIR/result.txt"
+export PRAVAH_FAKE_SNAPSHOT="$WORKDIR/snapshot.json"
 : >"$PRAVAH_FAKE_LOG"
+
+# A stand-in for the file `pravah watch` maintains, so the watch-transport
+# tests read a real file through the widget's FileView. generatedAt is stamped
+# at setup so the freshness check sees a live daemon, not a stale file.
+cat >"$PRAVAH_FAKE_SNAPSHOT" <<JSON
+{
+  "version": 1,
+  "generatedAt": $(date +%s%3N),
+  "day": "2026-05-04",
+  "convexUrl": "https://test.invalid.convex.cloud",
+  "counts": { "active": 2, "inbox": 1, "timeline": 1, "overdue": 1, "completedToday": 2, "goals": 1 },
+  "tasks": [
+    { "id": "w_overdue", "title": "Watch overdue", "status": "timeline", "deadline": "2026-05-01", "goalId": "g1" },
+    { "id": "w_inbox", "title": "Watch inbox", "status": "inbox" }
+  ],
+  "goals": [
+    { "id": "g1", "text": "Watch goal", "linkedTasks": 1, "completedTasks": 2 }
+  ]
+}
+JSON
 
 unset QS_CONFIG_PATH QS_CONFIG_NAME QS_MANIFEST || true
 
@@ -58,11 +79,31 @@ if [[ -z "$result" ]]; then
 fi
 
 echo "$result"
-if echo "$result" | grep -q '^PRAVAH_QTEST passed=' && echo "$result" | grep -q ' failed=0'; then
+if ! echo "$result" | grep -q '^PRAVAH_QTEST passed=' || ! echo "$result" | grep -q ' failed=0'; then
+  echo "----- stdout -----"
+  cat "$WORKDIR/qs.out" || true
+  echo "----- stderr -----"
+  cat "$WORKDIR/qs.err" || true
+  exit 1
+fi
+
+SHELL_KIT="/usr/share/omarchy/shell"
+if [[ ! -d "$SHELL_KIT/Ui" || ! -d "$SHELL_KIT/Commons" ]]; then
+  echo "skip: layout tests need the installed Omarchy shell kit"
   exit 0
 fi
-echo "----- stdout -----"
-cat "$WORKDIR/qs.out" || true
-echo "----- stderr -----"
-cat "$WORKDIR/qs.err" || true
-exit 1
+ln -s "$SHELL_KIT/Ui" "$WORKDIR/Ui"
+ln -s "$SHELL_KIT/Commons" "$WORKDIR/Commons"
+for component in PravahEditor PravahGoalEditor PravahDatePicker; do
+  ln -s "$ROOT/omarchy-plugin/widget/$component.qml" "$WORKDIR/$component.qml"
+done
+cp "$TESTS/Layout.qml" "$WORKDIR/Layout.qml"
+if ! timeout 10s quickshell -p "$WORKDIR/Layout.qml" --no-duplicate >"$WORKDIR/layout.out" 2>&1; then
+  cat "$WORKDIR/layout.out"
+  exit 1
+fi
+if ! grep -q 'PRAVAH_LAYOUT passed=.* failed=0' "$WORKDIR/layout.out"; then
+  cat "$WORKDIR/layout.out"
+  exit 1
+fi
+grep 'PRAVAH_LAYOUT' "$WORKDIR/layout.out"

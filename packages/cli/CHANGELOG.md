@@ -1,5 +1,40 @@
 # Changelog
 
+## [2.5.0](https://github.com/Snehit70/pravah/compare/cli-v2.4.1...cli-v2.5.0) (2026-09-29)
+
+
+### Features
+
+* **cli:** render watch waybar segment as today's next task ([#257](https://github.com/Snehit70/pravah/issues/257)) ([e289477](https://github.com/Snehit70/pravah/commit/e2894775eecf888d0d21dcfcebd5d285412b7e97))
+
+## [2.4.1](https://github.com/Snehit70/pravah/compare/cli-v2.4.0...cli-v2.4.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* **cli:** migrate legacy site URL for watch connections ([#255](https://github.com/Snehit70/pravah/issues/255)) ([0dac6b6](https://github.com/Snehit70/pravah/commit/0dac6b6cb9c4d65d8915f391106f81eb959a80e7))
+
+## [2.4.0](https://github.com/Snehit70/pravah/compare/cli-v2.3.0...cli-v2.4.0) (2026-09-29)
+
+
+### Features
+
+* **cli:** add a Convex subscribe mode for desktop widgets ([6f45dbb](https://github.com/Snehit70/pravah/commit/6f45dbb5a789f60f97055afbc50aea3984dcbb26))
+* **cli:** add a Convex subscribe mode for desktop widgets ([992c171](https://github.com/Snehit70/pravah/commit/992c17166d413d5989a805a646c07a26d16e4d0d))
+
+
+### Bug Fixes
+
+* **cli,widget:** address Omarchy host review on watch transport ([cc8e489](https://github.com/Snehit70/pravah/commit/cc8e489a045abd170686417b1a4ed1b19d9fea30))
+* **cli,widget:** surface watch subscription failures instead of heartbeating stale data ([3790be4](https://github.com/Snehit70/pravah/commit/3790be41bbf7b81fdc8206329f47dd7096285d7b))
+* **cli:** keep the published CLI dependency-free and cover the watch loop ([4cb9eff](https://github.com/Snehit70/pravah/commit/4cb9eff72b1ac7d9583fe55b958ce164057b7634))
+
+
+### Performance Improvements
+
+* subscribe to heavy Convex queries only when a screen needs them ([93afef8](https://github.com/Snehit70/pravah/commit/93afef8398113dfc46469fe3a1bf91ae7cf4134c))
+* subscribe to heavy Convex queries only when a screen needs them ([df494d2](https://github.com/Snehit70/pravah/commit/df494d29d7402022dcc2a69fba6b80fe16940f9e))
+
 ## [2.3.0](https://github.com/Snehit70/pravah/compare/cli-v2.2.0...cli-v2.3.0) (2026-09-25)
 
 

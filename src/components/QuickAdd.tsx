@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useMutation } from "convex/react";
+import { useMutation } from "../lib/data";
 import { AnimatePresence, motion } from "framer-motion";
 import { api } from "../../convex/_generated/api";
 import { T_BASE, T_FAST, tx } from "../lib/motion";
@@ -11,9 +11,9 @@ interface QuickAddProps {
   onClose: () => void;
 }
 
-const ACCENT = "oklch(0.78 0.14 260)";
-const ACCENT_SOFT = "oklch(0.72 0.16 260 / 0.2)";
-const DEADLINE_COLOR = "oklch(0.72 0.16 30)";
+const ACCENT = "var(--color-accent-primary)";
+const ACCENT_SOFT = "var(--color-accent-primary-muted)";
+const DEADLINE_COLOR = "var(--color-deadline)";
 
 function Pill({
   label,
@@ -37,11 +37,11 @@ function Pill({
         alignItems: "center",
         gap: 6,
         padding: "5px 10px",
-        background: active ? ACCENT_SOFT : "rgba(255,255,255,.03)",
-        border: `1px solid ${active ? "oklch(0.78 0.14 260 / 0.55)" : "rgba(255,255,255,.07)"}`,
+        background: active ? ACCENT_SOFT : "var(--color-fill-faint)",
+        border: `1px solid ${active ? "rgba(var(--color-accent-primary-rgb), 0.55)" : "var(--color-border-subtle)"}`,
         borderRadius: 5,
         fontSize: 11.5,
-        color: active ? ACCENT : "#c2c2c8",
+        color: active ? ACCENT : "var(--color-text-secondary)",
         cursor: "pointer",
         fontFamily: "var(--font-sans)",
         transition: tx(["background-color", "border-color", "color"], "instant"),
@@ -117,9 +117,9 @@ export function QuickAdd({ onClose }: QuickAddProps) {
   };
 
   const PRIORITY_COLORS: Record<string, string> = {
-    p1: "oklch(0.7 0.2 25)",
-    p2: "oklch(0.78 0.15 60)",
-    p3: "oklch(0.75 0.1 230)",
+    p1: "var(--color-priority-1)",
+    p2: "var(--color-priority-2)",
+    p3: "var(--color-priority-3)",
   };
 
   return (
@@ -134,7 +134,7 @@ export function QuickAdd({ onClose }: QuickAddProps) {
           position: "fixed",
           inset: 0,
           zIndex: 62,
-          background: "rgba(0,0,0,.55)",
+          background: "var(--color-bg-overlay)",
           backdropFilter: "blur(8px)",
           display: "flex",
           alignItems: "flex-start",
@@ -150,11 +150,11 @@ export function QuickAdd({ onClose }: QuickAddProps) {
           onClick={(e) => e.stopPropagation()}
           style={{
             width: 600,
-            background: "#101013",
-            border: "1px solid rgba(255,255,255,.13)",
+            background: "var(--color-bg-surface)",
+            border: "1px solid var(--color-border-default)",
             borderRadius: 12,
             padding: "20px 22px",
-            boxShadow: "0 40px 80px rgba(0,0,0,.6)",
+            boxShadow: "0 40px 80px rgba(39, 30, 22, 0.5)",
           }}
         >
           {/* Header row */}
@@ -172,7 +172,7 @@ export function QuickAdd({ onClose }: QuickAddProps) {
               style={{
                 fontSize: 10,
                 letterSpacing: 1.8,
-                color: "#6b6b72",
+                color: "var(--color-text-muted)",
                 fontFamily: "var(--font-mono)",
                 textTransform: "uppercase",
               }}
@@ -185,7 +185,7 @@ export function QuickAdd({ onClose }: QuickAddProps) {
               style={{
                 background: "transparent",
                 border: "none",
-                color: "#6b6b72",
+                color: "var(--color-text-muted)",
                 fontSize: 16,
                 cursor: "pointer",
                 padding: 4,
@@ -213,7 +213,7 @@ export function QuickAdd({ onClose }: QuickAddProps) {
               border: "none",
               outline: "none",
               fontSize: 19,
-              color: "#ededef",
+              color: "var(--color-text-primary)",
               fontFamily: "var(--font-sans)",
               padding: "4px 0",
               fontWeight: 500,
@@ -235,7 +235,7 @@ export function QuickAdd({ onClose }: QuickAddProps) {
                 border: "none",
                 outline: "none",
                 fontSize: 13,
-                color: "#c2c2c8",
+                color: "var(--color-text-secondary)",
                 fontFamily: "var(--font-sans)",
                 padding: "6px 0",
                 resize: "none",
@@ -253,7 +253,7 @@ export function QuickAdd({ onClose }: QuickAddProps) {
                 padding: "4px 0",
                 background: "transparent",
                 border: "none",
-                color: "#6b6b72",
+                color: "var(--color-text-muted)",
                 fontSize: 11.5,
                 cursor: "pointer",
                 fontFamily: "var(--font-sans)",
@@ -266,7 +266,7 @@ export function QuickAdd({ onClose }: QuickAddProps) {
             </button>
           )}
 
-          <div style={{ height: 1, background: "rgba(255,255,255,.07)", margin: "14px 0 12px" }} />
+          <div style={{ height: 1, background: "var(--color-border-subtle)", margin: "14px 0 12px" }} />
 
           {/* Planning preset */}
           <div className="flex gap-1.5 flex-wrap">
@@ -277,13 +277,13 @@ export function QuickAdd({ onClose }: QuickAddProps) {
           </div>
 
           {when !== "inbox" && (
-            <label className="mt-2.5 flex items-center gap-2 text-[11px] text-zinc-500">
+            <label className="mt-2.5 flex items-center gap-2 text-[11px] text-ink-mute">
               <span className="font-mono uppercase tracking-[0.12em]">TIME</span>
               <input
                 type="time"
                 value={time}
                 onChange={(event) => setTime(event.target.value)}
-                className="rounded-[4px] border border-white/[0.08] bg-black/25 px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-[oklch(0.78_0.14_260_/_0.45)]"
+                className="rounded-[4px] border border-line bg-fill-soft px-2 py-1.5 text-xs text-ink outline-none focus:border-accent/45"
                 aria-label="Task time"
               />
             </label>
@@ -295,7 +295,7 @@ export function QuickAdd({ onClose }: QuickAddProps) {
               style={{
                 fontSize: 9.5,
                 letterSpacing: 1.8,
-                color: "#6b6b72",
+                color: "var(--color-text-muted)",
                 fontFamily: "var(--font-mono)",
                 padding: "4px 4px 4px 0",
               }}
@@ -318,9 +318,9 @@ export function QuickAdd({ onClose }: QuickAddProps) {
           {/* Footer */}
           <div
             className="flex items-center mt-4 pt-3.5 gap-2.5"
-            style={{ borderTop: "1px solid rgba(255,255,255,.07)" }}
+            style={{ borderTop: "1px solid var(--color-border-subtle)" }}
           >
-            <span style={{ fontSize: 11, color: "#6b6b72", fontFamily: "var(--font-mono)", letterSpacing: 0.5 }}>
+            <span style={{ fontSize: 11, color: "var(--color-text-muted)", fontFamily: "var(--font-mono)", letterSpacing: 0.5 }}>
               <kbd>↵</kbd> add · <kbd>esc</kbd> cancel
             </span>
             <div className="flex-1" />
@@ -330,9 +330,9 @@ export function QuickAdd({ onClose }: QuickAddProps) {
               style={{
                 padding: "7px 14px",
                 background: "transparent",
-                border: "1px solid rgba(255,255,255,.07)",
+                border: "1px solid var(--color-border-subtle)",
                 borderRadius: 4,
-                color: "#ededef",
+                color: "var(--color-text-primary)",
                 fontSize: 12,
                 cursor: "pointer",
                 fontFamily: "var(--font-sans)",
@@ -346,10 +346,10 @@ export function QuickAdd({ onClose }: QuickAddProps) {
               disabled={!title.trim() || isSubmitting}
               style={{
                 padding: "7px 18px",
-                background: title.trim() ? ACCENT : "rgba(255,255,255,.07)",
+                background: title.trim() ? ACCENT : "var(--color-border-subtle)",
                 border: "none",
                 borderRadius: 4,
-                color: title.trim() ? "#0a0a0b" : "#6b6b72",
+                color: title.trim() ? "var(--color-bg-base)" : "var(--color-text-muted)",
                 fontSize: 12,
                 fontWeight: 600,
                 cursor: title.trim() ? "pointer" : "not-allowed",

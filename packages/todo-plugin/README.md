@@ -108,9 +108,35 @@ Available methods: `open`, `close`, `toggle`, `refresh`.
 Configurable through the widget's settings (shell.json entry or the shell's
 widget settings UI):
 
-- `pollIntervalSec` — refresh cadence, default 300 (min 10). Right click still refreshes immediately.
+- `transport` — read transport, default `cli`. Set to `watch` to read the
+  snapshot that `pravah watch` maintains instead of polling the HTTP API.
+- `pollIntervalSec` — refresh cadence, default 300 (min 10). Right click still refreshes immediately. Ignored in `watch` transport.
 - `defaultTab` — which tab opens on click, default `today`.
 - `showCompleted` — show the completed section on Today, default `On`.
+
+### Watch transport
+
+With `transport: watch`, the widget reads
+`$XDG_RUNTIME_DIR/pravah/snapshot.json` through a `FileView` and repaints when
+the file changes. Reads cost no network and no process spawn. The path is
+resolved once at startup via `pravah watch --path`, so the XDG fallback rules
+stay in the CLI rather than being duplicated in QML. Writes still go over HTTP.
+
+The widget does not fall back to polling when the snapshot is missing or stops
+updating. It shows the failure instead, because silently reverting to polling
+would hide a dead `pravah watch` behind data that looks current. The daemon
+heartbeats the snapshot every minute while idle, and the widget rechecks
+freshness on every file change, on a 30s timer, and on manual refresh (right
+click, Refresh button, or the `refresh` IPC method).
+
+Run `pravah watch` yourself, or under a supervisor:
+
+```sh
+pravah watch
+```
+
+Note that the subscription only carries today's completions, so goal progress in
+watch transport counts completions within the current day.
 
 ## Tests
 

@@ -3,11 +3,24 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useDndMonitor, useDroppable } from "@dnd-kit/core";
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { CalendarDays, Check, Trash2, X } from "lucide-react";
 import type { Task } from "../types";
 import { INBOX_DROP_ID } from "../lib/taskRules";
-import { formatTaskTime, getLocalDateString } from "../lib/utils";
+import { getLocalDateString } from "../lib/utils";
 import { tx } from "../lib/motion";
+import { goalWash } from "../lib/goalWash";
+import { PriorityPill } from "./ui/priorityPill";
+import { navInboxIcon } from "./ui/traced-icons";
+import {
+  CalendarIcon,
+  CheckIcon,
+  CloseIcon,
+  InboxTrayIcon,
+  PlusIcon,
+  SearchIcon,
+  TrashIcon,
+} from "./ui/icons";
+
+const NavInboxGlyph = navInboxIcon;
 
 interface InboxSidebarProps {
   tasks: Task[];
@@ -40,6 +53,28 @@ function formatTaskAge(createdAt: number): string {
   return `${mo}mo`;
 }
 
+function GoalDiamond({ goalName }: { goalName: string }) {
+  const wash = goalWash(goalName);
+  return (
+    <span
+      title={`Goal: ${goalName}`}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 3,
+        minWidth: 0,
+        fontSize: 10.5,
+        lineHeight: 1.3,
+        color: "var(--color-text-muted)",
+        flexShrink: 1,
+      }}
+    >
+      <span aria-hidden style={{ color: wash.color, fontSize: 9, flexShrink: 0 }}>◈</span>
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{goalName}</span>
+    </span>
+  );
+}
+
 function InboxTaskComponent({
   task,
   onClick,
@@ -65,7 +100,6 @@ function InboxTaskComponent({
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [scheduleDate, setScheduleDate] = useState(getLocalDateString());
 
-  const barColor = task.deadline ? "oklch(0.72 0.16 30)" : "oklch(0.78 0.14 260)";
   const isAgentAdded = task.source === "ai-agent";
   const sourceLabel = task.source ? SOURCE_LABEL[task.source] : null;
   const age = formatTaskAge(task.createdAt);
@@ -86,21 +120,34 @@ function InboxTaskComponent({
         {...attributes}
         {...listeners}
         style={{
-          padding: "7px 10px 7px 14px",
-          background: hover ? "rgba(255,255,255,.04)" : "rgba(255,255,255,.025)",
-          border: `1px solid ${hover ? "rgba(255,255,255,.13)" : "rgba(255,255,255,.07)"}`,
-          borderRadius: 4,
-          fontSize: 12,
-          color: "#ededef",
+          display: "flex",
+          alignItems: "center",
+          gap: 9,
+          padding: "8px 10px",
+          background:
+            selected || hover ? "var(--color-bg-floating)" : "var(--color-bg-elevated)",
+          border: `1px solid ${
+            selected
+              ? "rgba(var(--color-accent-primary-rgb), 0.35)"
+              : hover
+                ? "var(--color-border-strong)"
+                : "var(--color-border-default)"
+          }`,
+          borderRadius: 10,
+          boxShadow: hover ? "0 3px 10px rgba(44,33,24,0.1)" : "none",
+          fontSize: 12.5,
+          fontWeight: 500,
+          color: "var(--color-text-primary)",
           cursor: isDragging ? "grabbing" : "grab",
           position: "relative",
-          transition: tx(["background-color", "border-color", "opacity"], "instant"),
+          transition: tx(["background-color", "border-color", "box-shadow", "opacity"], "instant"),
           userSelect: "none",
+          opacity: isDragging ? 0.35 : 1,
         }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: isDragging ? 0.3 : 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.12 }}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: isDragging ? 0.35 : 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.97 }}
+        transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       onClick={(e) => {
@@ -134,7 +181,8 @@ function InboxTaskComponent({
         }
       }}
     >
-      {selectMode && (
+      {/* Leading tile: inbox mark normally, selection checkbox in select mode */}
+      {selectMode ? (
         <button
           type="button"
           aria-label={selected ? `Deselect ${task.title}` : `Select ${task.title}`}
@@ -145,142 +193,227 @@ function InboxTaskComponent({
             onToggleSelect();
           }}
           style={{
-            position: "absolute",
-            top: 9,
-            left: 10,
-            width: 16,
-            height: 16,
-            borderRadius: 4,
-            border: `1px solid ${selected ? "oklch(0.78 0.14 260)" : "rgba(255,255,255,.2)"}`,
-            background: selected ? "oklch(0.78 0.14 260)" : "transparent",
-            color: "#101013",
+            width: 30,
+            height: 30,
+            flexShrink: 0,
+            borderRadius: 9,
+            border: selected ? "none" : "1.5px solid var(--color-border-strong)",
+            background: selected ? "var(--color-accent-primary)" : "var(--color-bg-surface)",
+            color: "var(--color-text-inverse)",
             display: "grid",
             placeItems: "center",
             cursor: "pointer",
           }}
         >
-          {selected && <Check size={11} strokeWidth={3} />}
+          {selected && <CheckIcon size={14} strokeWidth={2.6} />}
         </button>
-      )}
-      {/* Left bar */}
-      <span
-        style={{
-          position: "absolute",
-          left: 6,
-          top: "50%",
-          transform: "translateY(-50%)",
-          width: 4,
-          height: "60%",
-          background: barColor,
-          borderRadius: 2,
-        }}
-      />
-      <div className="flex items-center gap-1.5" style={{ paddingLeft: selectMode ? 22 : 0 }}>
-        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {task.title}
-        </span>
-        {goalName && (
-          <span
-            title={`Goal: ${goalName}`}
-            style={{
-              fontSize: 9,
-              color: "oklch(0.78 0.14 260 / 0.9)",
-              fontFamily: "var(--font-mono)",
-              letterSpacing: 0.4,
-              maxWidth: 92,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            ◈ {goalName}
-          </span>
-        )}
-        {isAgentAdded && (
-          <span
-            title="Added by Kairo"
-            style={{ fontSize: 9, color: "oklch(0.78 0.14 260)", fontFamily: "var(--font-mono)", letterSpacing: 0.6 }}
-          >
-            ✦
-          </span>
-        )}
-      </div>
-      {(sourceLabel || age || task.time) && (
-        <div
-          className="tabular"
+      ) : (
+        <span
+          aria-hidden
           style={{
-            marginTop: 3,
-            fontFamily: "var(--font-mono)",
-            fontSize: 9,
-            letterSpacing: 0.6,
-            color: "#6b6b72",
-            display: "flex",
-            gap: 8,
+            width: 30,
+            height: 30,
+            flexShrink: 0,
+            borderRadius: 9,
+            border: "1px solid var(--color-border-subtle)",
+            background: "var(--color-bg-surface)",
+            color: "var(--color-text-muted)",
+            display: "grid",
+            placeItems: "center",
           }}
         >
-          {sourceLabel && (
-            <span style={{ color: isAgentAdded ? "oklch(0.78 0.14 260 / 0.85)" : "#6b6b72" }}>
-              {sourceLabel}
-            </span>
-          )}
-          {task.time && <span style={{ color: "#8b8b94" }}>{formatTaskTime(task.time)}</span>}
-          {age && <span style={{ color: "#45454a" }}>{age}</span>}
-        </div>
+          <NavInboxGlyph size={16} />
+        </span>
       )}
-      {!selectMode && onSchedule && (
-        <div className="mt-2 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
-          {scheduleOpen ? (
-            <div className="flex min-w-0 flex-1 items-center gap-1.5">
-              <input
-                type="date"
-                value={scheduleDate}
-                min={getLocalDateString()}
-                onChange={(e) => setScheduleDate(e.target.value)}
-                aria-label={`Schedule ${task.title}`}
-                onPointerDown={(e) => e.stopPropagation()}
-                className="min-w-0 flex-1 rounded-[3px] border border-white/[0.1] bg-black/25 px-1.5 py-1 text-[10px] text-zinc-200 outline-none focus:border-[oklch(0.78_0.14_260_/_0.45)]"
-              />
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (scheduleDate) onSchedule(scheduleDate);
-                  setScheduleOpen(false);
+
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: "flex",
+          flexDirection: "column",
+          gap: 5,
+          paddingLeft: 0,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
+          <span
+            style={{
+              flex: 1,
+              minWidth: 0,
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+              lineHeight: 1.35,
+              letterSpacing: -0.1,
+            }}
+          >
+            {task.title}
+          </span>
+          {task.priority && <PriorityPill priority={task.priority} />}
+        </div>
+        {(goalName || sourceLabel || age || task.time) && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              flexWrap: "wrap",
+            }}
+          >
+            {goalName && <GoalDiamond goalName={goalName} />}
+            {sourceLabel && (
+              <span
+                style={{
+                  fontSize: 9,
+                  fontFamily: "var(--font-mono)",
+                  letterSpacing: 0.7,
+                  padding: "2px 5px",
+                  borderRadius: 4,
+                  lineHeight: 1,
+                  color: isAgentAdded ? "var(--color-accent-primary)" : "var(--color-text-dim)",
+                  background: isAgentAdded ? "var(--color-accent-primary-muted)" : "var(--color-fill-faint)",
+                  flexShrink: 0,
                 }}
-                aria-label={`Confirm schedule for ${task.title}`}
-                className="rounded-[3px] bg-[oklch(0.78_0.14_260_/_0.18)] p-1 text-[oklch(0.78_0.14_260)] hover:bg-[oklch(0.78_0.14_260_/_0.28)]"
               >
-                <Check size={12} />
-              </button>
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setScheduleOpen(false);
-                }}
-                aria-label={`Cancel scheduling ${task.title}`}
-                className="rounded-[3px] p-1 text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200"
+                {sourceLabel}
+              </span>
+            )}
+            {task.time && (
+              <span
+                className="tabular"
+                style={{ fontSize: 9.5, fontFamily: "var(--font-mono)", color: "var(--color-text-muted)", flexShrink: 0 }}
               >
-                <X size={12} />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                setScheduleDate(getLocalDateString());
-                setScheduleOpen(true);
-              }}
-              className="inline-flex items-center gap-1 rounded-[3px] border border-white/[0.08] px-1.5 py-1 text-[10px] text-zinc-500 hover:border-white/[0.16] hover:text-zinc-200"
-            >
-              <CalendarDays size={11} />
-              Schedule
-            </button>
-          )}
+                {task.time}
+              </span>
+            )}
+            {age && (
+              <span
+                className="tabular"
+                style={{ fontSize: 9.5, fontFamily: "var(--font-mono)", color: "var(--color-text-dim)", flexShrink: 0 }}
+              >
+                {age}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Trailing schedule affordance: a quiet tile, not a labelled chip */}
+      {!selectMode && onSchedule && !scheduleOpen && (
+        <button
+          type="button"
+          aria-label={`Schedule ${task.title}`}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            setScheduleDate(getLocalDateString());
+            setScheduleOpen(true);
+          }}
+          style={{
+            width: 28,
+            height: 28,
+            flexShrink: 0,
+            display: "grid",
+            placeItems: "center",
+            borderRadius: 7,
+            border: "1px solid var(--color-border-subtle)",
+            background: "var(--color-bg-surface)",
+            color: "var(--color-text-secondary)",
+            cursor: "pointer",
+            transition: tx("border-color", "instant"),
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--color-accent-primary)")}
+          onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--color-border-subtle)")}
+        >
+          <CalendarIcon size={14} strokeWidth={1.8} />
+        </button>
+      )}
+
+      {!selectMode && onSchedule && scheduleOpen && (
+        <div
+          style={{
+            position: "absolute",
+            left: -1,
+            right: -1,
+            top: "100%",
+            zIndex: 5,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "8px 10px",
+            background: "var(--color-bg-floating)",
+            border: "1px solid var(--color-border-strong)",
+            borderRadius: "0 0 10px 10px",
+            boxShadow: "0 8px 20px rgba(44,33,24,0.14)",
+          }}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <input
+            type="date"
+            value={scheduleDate}
+            min={getLocalDateString()}
+            onChange={(e) => setScheduleDate(e.target.value)}
+            aria-label={`Schedule ${task.title}`}
+            style={{
+              minWidth: 0,
+              flex: 1,
+              borderRadius: 6,
+              border: "1px solid var(--color-border-default)",
+              background: "var(--color-fill-soft)",
+              padding: "4px 8px",
+              fontSize: 11,
+              color: "var(--color-text-primary)",
+              outline: "none",
+            }}
+          />
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (scheduleDate) onSchedule(scheduleDate);
+              setScheduleOpen(false);
+            }}
+            aria-label={`Confirm schedule for ${task.title}`}
+            style={{
+              display: "grid",
+              placeItems: "center",
+              width: 24,
+              height: 24,
+              borderRadius: 6,
+              border: "1px solid var(--color-success)",
+              background: "var(--color-success-muted)",
+              color: "var(--color-success)",
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
+          >
+            <CheckIcon size={12} strokeWidth={2.4} />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setScheduleOpen(false);
+            }}
+            aria-label={`Cancel scheduling ${task.title}`}
+            style={{
+              display: "grid",
+              placeItems: "center",
+              width: 24,
+              height: 24,
+              borderRadius: 6,
+              border: "1px solid var(--color-border-default)",
+              background: "transparent",
+              color: "var(--color-text-mute)",
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
+          >
+            <CloseIcon size={12} strokeWidth={2.2} />
+          </button>
         </div>
       )}
       </motion.div>
@@ -407,97 +540,178 @@ function InboxSidebarComponent({
         flexDirection: "column",
         height: "100%",
         width: 300,
-        background: isOver ? "oklch(0.72 0.16 260 / 0.1)" : "#101013",
-        borderLeft: "1px solid rgba(255,255,255,.07)",
-        outline: isOver ? "1px dashed oklch(0.78 0.14 260 / 0.5)" : "none",
-        outlineOffset: -2,
+        background: isOver ? "var(--color-accent-dim)" : "var(--color-bg-surface)",
+        borderLeft: "1px solid var(--color-border-subtle)",
+        outline: isOver ? "1px dashed var(--color-accent-primary)" : "none",
+        outlineOffset: -3,
         transition: tx("background-color", "fast"),
       }}
     >
       {/* Header */}
       <div
-        className="flex items-start gap-2 px-[14px] py-3"
-        style={{ borderBottom: "1px solid rgba(255,255,255,.07)" }}
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 8,
+          padding: "14px 16px 12px",
+          borderBottom: "1px solid var(--color-border-subtle)",
+        }}
       >
-        <div className="flex flex-col gap-0.5">
-          <div className="flex items-center gap-2">
-            <span style={{ fontSize: 13, fontWeight: 500, color: "#ededef" }}>Inbox</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+            <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: -0.2, color: "var(--color-text-primary)", fontFamily: "var(--font-sans)" }}>
+              Inbox
+            </span>
             <span
               className="tabular"
               style={{
-                fontSize: 11,
-                padding: "1px 7px",
+                fontSize: 10.5,
+                height: 18,
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "0 7px",
                 borderRadius: 99,
-                background: "oklch(0.72 0.16 260 / 0.2)",
-                color: "oklch(0.78 0.14 260)",
+                background: "var(--color-accent-primary-muted)",
+                color: "var(--color-accent-primary)",
                 fontFamily: "var(--font-mono)",
+                fontWeight: 500,
               }}
             >
               {tasks.length}
             </span>
           </div>
-          {kairoCount > 0 && (
-            <span
-              className="tabular"
-              style={{
-                fontSize: 9,
-                fontFamily: "var(--font-mono)",
-                color: "#6b6b72",
-                letterSpacing: 0.6,
-              }}
-            >
-              {kairoCount} from kairo
-            </span>
-          )}
-        </div>
-        <div className="flex-1" />
-        {tasks.length > 0 && (selectMode ? (
-          <button
-            type="button"
-            onClick={exitSelectMode}
-            className="inline-flex items-center gap-1 rounded-[4px] border border-white/[0.08] px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200"
+          <span
+            style={{
+              fontSize: 9,
+              fontFamily: "var(--font-mono)",
+              color: "var(--color-text-dim)",
+              letterSpacing: 1,
+            }}
           >
-            <X size={11} /> Cancel
-          </button>
-        ) : (
+            {kairoCount > 0 ? `${kairoCount} FROM KAIRO · TO TRIAGE` : "TO TRIAGE"}
+          </span>
+        </div>
+        <div style={{ flex: 1 }} />
+        {!selectMode && tasks.length > 0 && (
           <button
             type="button"
             onClick={() => setSelectMode(true)}
-            className="rounded-[4px] border border-white/[0.08] px-2 py-1 text-[10px] text-zinc-500 hover:border-white/[0.16] hover:text-zinc-200"
+            className="rounded-[6px] border border-line px-2 py-1 text-[10px] text-ink-mute hover:border-line-strong hover:text-ink"
           >
             Select
           </button>
-        ))}
+        )}
       </div>
 
-      {/* Search */}
-      <div className="px-2.5 py-2" style={{ borderBottom: "1px solid rgba(255,255,255,.07)" }}>
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search inbox…"
-          style={{
-            width: "100%",
-            background: "rgba(0,0,0,.25)",
-            border: "1px solid rgba(255,255,255,.09)",
-            boxShadow: "inset 0 1px 0 rgba(0,0,0,.3)",
-            borderRadius: 4,
-            padding: "6px 10px",
-            color: "#ededef",
-            fontSize: 12,
-            outline: "none",
-            transition: tx(["border-color", "background-color"], "instant"),
-          }}
-          onFocus={(e) => {
-            e.target.style.borderColor = "oklch(0.78 0.14 260 / 0.4)";
-            e.target.style.background = "rgba(0,0,0,.35)";
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = "rgba(255,255,255,.09)";
-            e.target.style.background = "rgba(0,0,0,.25)";
-          }}
-        />
-        <div className="mt-2 flex flex-wrap gap-1" role="group" aria-label="Inbox priority filter">
+      {/* Search — or the selection meter while triaging */}
+      {selectMode ? (
+        <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--color-border-subtle)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, minHeight: 26 }}>
+            <button
+              type="button"
+              onClick={exitSelectMode}
+              style={{ fontSize: 11.5, color: "var(--color-text-secondary)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={toggleSelectAll}
+              style={{ fontSize: 11.5, fontWeight: 600, color: "var(--color-accent-primary)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+            >
+              {allFilteredSelected ? "Clear" : "Select all"}
+            </button>
+          </div>
+          <div
+            aria-label={`${visibleSelectedIds.size} of ${filtered.length} tasks selected`}
+            style={{
+              marginTop: 8,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              padding: "10px 12px",
+              borderRadius: 10,
+              background: "var(--color-bg-elevated)",
+              border: "1px solid var(--color-border-default)",
+            }}
+          >
+            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>
+              {visibleSelectedIds.size === 0 ? "Choose tasks" : `${visibleSelectedIds.size} selected`}
+            </span>
+            <div style={{ width: 116, display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
+              <div
+                aria-hidden
+                style={{ height: 7, borderRadius: 99, background: "var(--color-accent-dim)", overflow: "hidden" }}
+              >
+                <motion.div
+                  initial={false}
+                  animate={{
+                    width: `${filtered.length === 0 ? 0 : Math.round((visibleSelectedIds.size / filtered.length) * 100)}%`,
+                  }}
+                  transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                  style={{ height: "100%", borderRadius: 99, background: "var(--color-accent-primary)" }}
+                />
+              </div>
+              <span
+                className="tabular"
+                style={{
+                  fontSize: 9.5,
+                  fontFamily: "var(--font-mono)",
+                  textAlign: "right",
+                  color: "var(--color-text-muted)",
+                }}
+              >
+                {filtered.length === 0 ? 0 : Math.round((visibleSelectedIds.size / filtered.length) * 100)}%
+              </span>
+            </div>
+          </div>
+        </div>
+      ) : (
+      <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--color-border-subtle)" }}>
+        <div style={{ position: "relative" }}>
+          <span
+            style={{
+              position: "absolute",
+              left: 9,
+              top: "50%",
+              transform: "translateY(-50%)",
+              color: "var(--color-text-dim)",
+              display: "grid",
+              placeItems: "center",
+              pointerEvents: "none",
+            }}
+          >
+            <SearchIcon size={13} strokeWidth={1.8} />
+          </span>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search inbox…"
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              background: "var(--color-fill-soft)",
+              border: "1px solid var(--color-border-default)",
+              borderRadius: 8,
+              padding: "7px 10px 7px 28px",
+              color: "var(--color-text-primary)",
+              fontSize: 12,
+              fontFamily: "var(--font-sans)",
+              outline: "none",
+              transition: tx(["border-color", "background-color"], "instant"),
+            }}
+            onFocus={(e) => {
+              e.target.style.borderColor = "var(--color-accent-primary)";
+              e.target.style.background = "var(--color-bg-floating)";
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = "var(--color-border-default)";
+              e.target.style.background = "var(--color-fill-soft)";
+            }}
+          />
+        </div>
+        <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 4 }} role="group" aria-label="Inbox priority filter">
           {([
             ["all", "All"],
             ["p1", "P1"],
@@ -510,20 +724,37 @@ function InboxSidebarComponent({
               type="button"
               aria-pressed={filter === value}
               onClick={() => setFilter(value)}
-              className={filter === value
-                ? "rounded-[3px] border border-[oklch(0.78_0.14_260_/_0.45)] bg-[oklch(0.72_0.16_260_/_0.2)] px-2 py-1 text-[10px] text-[oklch(0.78_0.14_260)]"
-                : "rounded-[3px] border border-white/[0.07] px-2 py-1 text-[10px] text-zinc-600 hover:text-zinc-300"}
+              style={{
+                height: 22,
+                padding: "0 8px",
+                borderRadius: 6,
+                border: `1px solid ${filter === value ? "var(--color-accent-primary)" : "var(--color-border-default)"}`,
+                background: filter === value ? "var(--color-accent-primary-muted)" : "var(--color-bg-elevated)",
+                color: filter === value ? "var(--color-accent-primary)" : "var(--color-text-dim)",
+                fontSize: 10,
+                fontWeight: 600,
+                fontFamily: filter === value ? "var(--font-mono)" : "var(--font-sans)",
+                cursor: "pointer",
+                transition: tx(["border-color", "background-color"], "instant"),
+              }}
             >
               {label}
             </button>
           ))}
         </div>
       </div>
+      )}
 
       {/* Task list */}
       <div
-        className="flex-1 overflow-y-auto"
-        style={{ padding: "10px", display: "flex", flexDirection: "column", gap: 5 }}
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          padding: 10,
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+        }}
       >
         <SortableContext
           items={query || filter !== "all" || selectMode ? [] : filtered.map(t => t._id)}
@@ -550,69 +781,109 @@ function InboxSidebarComponent({
           </AnimatePresence>
         </SortableContext>
         {filtered.length === 0 && (
-          <div
-            style={{ textAlign: "center", padding: "40px 10px", fontSize: 12, color: "#6b6b72" }}
-          >
-            {query ? "No matches." : "Inbox is clear."}
+          <div style={{ textAlign: "center", padding: "44px 16px" }}>
+            <span
+              aria-hidden
+              style={{
+                width: 56,
+                height: 56,
+                margin: "0 auto 12px",
+                display: "grid",
+                placeItems: "center",
+                borderRadius: 99,
+                border: "1px solid var(--color-border-subtle)",
+                background: "var(--color-bg-surface)",
+                color: "var(--color-text-dim)",
+              }}
+            >
+              <InboxTrayIcon size={26} strokeWidth={1.6} />
+            </span>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", fontFamily: "var(--font-sans)" }}>
+              {query ? "No matches." : "Everything has a place."}
+            </div>
+            <div style={{ marginTop: 4, fontSize: 12, color: "var(--color-text-muted)", fontFamily: "var(--font-sans)" }}>
+              {query ? "Try a different search." : "Capture a task to fill the inbox."}
+            </div>
           </div>
         )}
       </div>
 
       {/* Footer */}
-      <div style={{ padding: 10, borderTop: "1px solid rgba(255,255,255,.07)" }}>
+      <div style={{ padding: 10, borderTop: "1px solid var(--color-border-subtle)" }}>
         {selectMode && (
-          <>
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={toggleSelectAll}
-                className="text-[10px] text-zinc-500 hover:text-zinc-200"
-              >
-                {allFilteredSelected ? "Deselect all" : "Select all"}
-              </button>
-              <span className="text-[10px] text-zinc-600">{visibleSelectedIds.size} selected</span>
-            </div>
-            <div className="mb-2 grid grid-cols-2 gap-1.5">
+          <div style={{ marginBottom: onOpenQuickAdd ? 8 : 0, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
               <button
                 type="button"
                 disabled={visibleSelectedIds.size === 0 || !onDeleteMany}
                 onClick={() => void runBulk(onDeleteMany)}
-                className="inline-flex items-center justify-center gap-1 rounded-[4px] border border-red-400/30 px-2 py-2 text-[10px] text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 5,
+                  height: 34,
+                  borderRadius: 10,
+                  border: "1px solid var(--color-error)",
+                  background: "var(--color-bg-floating)",
+                  color: "var(--color-error)",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  fontFamily: "var(--font-sans)",
+                  cursor: "pointer",
+                }}
               >
-                <Trash2 size={11} /> Delete
+                <TrashIcon size={12} strokeWidth={2} /> Delete
               </button>
               <button
                 type="button"
                 disabled={visibleSelectedIds.size === 0 || !onCompleteMany}
                 onClick={() => void runBulk(onCompleteMany)}
-                className="inline-flex items-center justify-center gap-1 rounded-[4px] border border-emerald-400/30 px-2 py-2 text-[10px] text-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 5,
+                  height: 34,
+                  borderRadius: 10,
+                  border: "1px solid transparent",
+                  background: "var(--color-accent-primary)",
+                  color: "var(--color-text-inverse)",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  fontFamily: "var(--font-sans)",
+                  cursor: "pointer",
+                  boxShadow: "0 1px 2px rgba(44,33,24,0.14)",
+                }}
               >
-                <Check size={11} /> Mark done
+                <CheckIcon size={12} strokeWidth={2.4} /> Mark done
               </button>
             </div>
-          </>
         )}
-        {onOpenQuickAdd && (
+        {!selectMode && onOpenQuickAdd && (
           <button
             onClick={onOpenQuickAdd}
             style={{
               width: "100%",
-              padding: "8px 12px",
-              borderRadius: 4,
-              border: "1px solid oklch(0.78 0.14 260 / 0.4)",
-              background: "oklch(0.72 0.16 260 / 0.2)",
-              color: "oklch(0.78 0.14 260)",
-              fontSize: 12,
-              fontWeight: 500,
+              height: 40,
+              borderRadius: 10,
+              border: "1px solid var(--color-accent-primary)",
+              background: "var(--color-accent-primary)",
+              color: "var(--color-bg-floating)",
+              fontSize: 13,
+              fontWeight: 600,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               gap: 6,
               fontFamily: "var(--font-sans)",
+              boxShadow: "0 1px 2px rgba(44,33,24,0.14)",
+              transition: tx("background-color", "instant"),
             }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-accent-primary-hover)")}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "var(--color-accent-primary)")}
           >
-            <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> New task
+            <PlusIcon size={14} strokeWidth={2.4} /> New task
           </button>
         )}
       </div>

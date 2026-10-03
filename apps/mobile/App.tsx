@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
-import Animated, { Easing, FadeIn, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, { Easing, FadeIn, withTiming } from "react-native-reanimated";
 import { useAction, useConvex, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -36,6 +36,7 @@ import { classifyError, createActionId, mobileLogger } from "./src/lib/logger";
 import {
   getDiagnosticsSnapshot,
   initializeDiagnostics,
+  recordDiagnosticEvent,
   setDiagnosticScreen,
   shutdownDiagnostics,
   type DiagnosticEvent,
@@ -62,7 +63,7 @@ import { TaskCard, type MobileTask } from "./src/components/TaskCard";
 import { TaskImageBudgetNotice } from "./src/components/TaskImageBudgetNotice";
 import { BottomTabBar, type TabKey } from "./src/components/BottomTabBar";
 import { GridBackground } from "./src/components/GridBackground";
-import { Kairo, type KairoSheetRef } from "./src/components/Kairo";
+import { Kairo } from "./src/components/Kairo";
 import { BootScreen } from "./src/components/BootScreen";
 import { BrandMark } from "./src/components/BrandMark";
 import { AddTaskSheet, type AddTaskSheetRef } from "./src/components/AddTaskSheet";
@@ -107,11 +108,21 @@ import {
   acquireTaskImageSources,
   abortPreparedTaskImageUpload,
   normalizeTaskImage,
+  deleteLocalTaskImage,
+  downloadLocalTaskImage,
   persistTaskImageSource,
+  readLocalTaskImage,
   removeTaskImageSource,
   resolveTaskImageSource,
   uploadPreparedTaskImage,
+  writeLocalTaskImage,
 } from "./src/lib/taskImageNative";
+import {
+  LOCAL_TASK_IMAGE_INDEX_KEY,
+  rememberLocalTaskImage,
+  resolveTaskImageBytes,
+  retainLocalTaskImages,
+} from "./src/lib/taskImageLibrary";
 import {
   AlertCircleIcon,
   CloseIcon,
@@ -174,7 +185,6 @@ function MobileApp() {
   const tabEnterAnimation = reducedMotion ? undefined : tabEnter;
   const addTaskSheetRef = useRef<AddTaskSheetRef>(null);
   const editTaskSheetRef = useRef<EditTaskSheetRef>(null);
-  const kairoRef = useRef<KairoSheetRef>(null);
   const lastListStateLogMsRef = useRef<number>(0);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [diagnosticEvents, setDiagnosticEvents] = useState<DiagnosticEvent[]>([]);
@@ -224,15 +234,6 @@ function MobileApp() {
     void authStorageReady.then(() => setIsAuthStorageReady(true));
   }, []);
   visitedTabsRef.current.add(activeTab);
-
-  const chromeDim = useSharedValue(1);
-  useEffect(() => {
-    const target = isKairoActive ? 0.38 : 1;
-    chromeDim.value = reducedMotion
-      ? target
-      : withTiming(target, { duration: 280 });
-  }, [chromeDim, isKairoActive, reducedMotion]);
-  const chromeAnimStyle = useAnimatedStyle(() => ({ opacity: chromeDim.value }));
 
   const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
   const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || undefined;
@@ -299,12 +300,16 @@ function MobileApp() {
     isCompletedLoading,
     isAllTasksReady,
     isImageCollectionsReady,
+    retainedImageIds,
   } = useTaskQueries({
     isAuthenticated: Boolean(session),
-    // The full corpus stays subscribed for the whole session. At single-user
-    // scale it's a handful of indexed rows, and keeping it live means Goals /
-    // Progress / Kairo never pay a server round-trip on entry.
-    includeAllTasks: true,
+    includeCompletedHistory: activeTab === "goals" || activeTab === "insights",
+    includeCompletedToday: activeTab === "timeline",
+    includeImages:
+      activeTab === "inbox" ||
+      activeTab === "timeline" ||
+      activeTab === "goals" ||
+      activeTab === "insights",
   });
   const taskImageBudgetStatus = useQuery(
     api.taskImageBudget.getOwnerBudgetStatus,
@@ -334,6 +339,7 @@ function MobileApp() {
     workspaceTaskCorpus,
     displayTimelineSections,
     displayInboxCount,
+    displayOverdueCount,
     displayCompletedCount,
     activeServerTasks,
     visibleTasks,
@@ -399,6 +405,17 @@ function MobileApp() {
           resolve: resolveTaskImageSource,
           remove: removeTaskImageSource,
         },
+        libraryStore: {
+          save: async (taskImageId, sourceUri) => {
+            const stored = await writeLocalTaskImage(taskImageId, sourceUri);
+            if (!stored) return;
+            await rememberLocalTaskImage(
+              taskImageId,
+              () => AsyncStorage.getItem(LOCAL_TASK_IMAGE_INDEX_KEY),
+              (value) => AsyncStorage.setItem(LOCAL_TASK_IMAGE_INDEX_KEY, value),
+            );
+          },
+        },
         ownerScope: () => session?.user?.id,
         manifestStore: taskImageManifestStore,
         stage: async (image) => {
@@ -441,11 +458,73 @@ function MobileApp() {
       session?.user?.id,
     ]
   );
+  const taskImageByteStore = useMemo(() => ({
+    read: readLocalTaskImage,
+    writeFromFile: async (taskImageId: string, sourceUri: string) => {
+      const stored = await writeLocalTaskImage(taskImageId, sourceUri);
+      if (stored) {
+        await rememberLocalTaskImage(
+          taskImageId,
+          () => AsyncStorage.getItem(LOCAL_TASK_IMAGE_INDEX_KEY),
+          (value) => AsyncStorage.setItem(LOCAL_TASK_IMAGE_INDEX_KEY, value),
+        );
+      }
+      return stored;
+    },
+    writeFromUrl: async (taskImageId: string, url: string) => {
+      const stored = await downloadLocalTaskImage(taskImageId, url);
+      if (stored) {
+        await rememberLocalTaskImage(
+          taskImageId,
+          () => AsyncStorage.getItem(LOCAL_TASK_IMAGE_INDEX_KEY),
+          (value) => AsyncStorage.setItem(LOCAL_TASK_IMAGE_INDEX_KEY, value),
+        );
+      }
+      return stored;
+    },
+  }), []);
   const resolveTaskImage = useCallback(
-    (taskImageId: string, variant: "card" | "detail") =>
-      resolveTaskImageAction({ taskImageId: taskImageId as Id<"taskImages">, variant }),
-    [resolveTaskImageAction]
+    (taskImageId: string, variant: "card" | "detail", options?: { download?: boolean }) =>
+      resolveTaskImageBytes({
+        taskImageId,
+        variant,
+        allowDownload: options?.download !== false,
+        store: taskImageByteStore,
+        resolveRemote: async (id, remoteVariant) => {
+          const result = await resolveTaskImageAction({
+            taskImageId: id as Id<"taskImages">,
+            variant: remoteVariant,
+          });
+          if (result.kind === "ready" || result.kind === "not_found" || result.kind === "state") return result;
+          return { kind: "not_found" as const };
+        },
+        onIo: (event) => {
+          recordDiagnosticEvent("image_io", "debug", event, "network");
+        },
+      }),
+    [resolveTaskImageAction, taskImageByteStore],
   );
+  const retainedImageKey = retainedImageIds?.join("\n") ?? null;
+  useEffect(() => {
+    if (!retainedImageIds) return;
+    let cancelled = false;
+    const protectedIds = new Set(
+      taskImageCoordinator.getViewStates().flatMap((image) => image.taskImageId ? [image.taskImageId] : []),
+    );
+    void retainLocalTaskImages({
+      nextIds: new Set(retainedImageIds),
+      protectedIds,
+      readIndex: () => AsyncStorage.getItem(LOCAL_TASK_IMAGE_INDEX_KEY),
+      writeIndex: (value) => AsyncStorage.setItem(LOCAL_TASK_IMAGE_INDEX_KEY, value),
+      remove: deleteLocalTaskImage,
+    }).then((forgotten) => {
+      if (cancelled || forgotten.length === 0) return;
+      recordDiagnosticEvent("image_io", "info", { outcome: "deleted", count: forgotten.length }, "sync");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [retainedImageIds, retainedImageKey, taskImageCoordinator]);
   const sessionUserId = session?.user?.id;
   useEffect(() => {
     if (!sessionUserId) {
@@ -479,12 +558,13 @@ function MobileApp() {
       );
     }
   }, [taskImageCoordinator, workspaceTaskCorpus]);
+  const [overduePreviewEnabled, setOverduePreviewEnabled] = useState(false);
   const overduePreviewData = useQuery(
     api.overdueReflow.preview,
-    session && activeTab === "timeline" ? { today } : "skip"
+    session && overduePreviewEnabled ? { today } : "skip"
   );
 
-  useConvexGoalsSync(Boolean(session));
+  useConvexGoalsSync(Boolean(session) && (activeTab === "goals" || activeTab === "insights"));
   const { setGoalLink, clearAll: clearAllGoals } = useGoalMutations();
 
   // ── Derived data ────────────────────────────────────────────────────
@@ -508,7 +588,11 @@ function MobileApp() {
   const tabBarHeight = 62 + tabBarBottomPadding;
 
   const shouldSyncReminders = Boolean(session) && notificationsEnabled && isAllTasksReady;
-  useReminderSync(allWorkspaceTasks, prefs, shouldSyncReminders);
+  useReminderSync(
+    [...inboxTasks, ...scheduledTasks],
+    prefs,
+    shouldSyncReminders,
+  );
 
   // ── Integrations ────────────────────────────────────────────────────
 
@@ -954,6 +1038,7 @@ function MobileApp() {
     restoreTaskMutation: restoreTaskWithImageResume,
     showToast,
     enqueueRetry,
+    onOpenChange: setOverduePreviewEnabled,
   });
 
   // ── Add task handler (from sheet) ───────────────────────────────────
@@ -1115,21 +1200,28 @@ function MobileApp() {
   const openKairo = useCallback(() => {
     if (!canUseWorkspaceActions) return;
     mobileLogger.info("kairo_opened");
-    kairoRef.current?.open();
-  }, [canUseWorkspaceActions]);
+    setIsKairoActive(true);
+  }, [canUseWorkspaceActions, setIsKairoActive]);
+
+  const closeKairo = useCallback(() => {
+    mobileLogger.info("kairo_closed");
+    setIsKairoActive(false);
+  }, [setIsKairoActive]);
 
   // Android hardware back: close the topmost overlay (sheet/modal) instead
   // of letting the OS exit the app. Without this, BACK from an open Capture
   // sheet would dismiss the sheet *and* pop the activity, sending the user
   // straight to the launcher.
+  //
+  // Kairo is absent on purpose. It's a full-screen Modal, which on Android is
+  // its own window: it consumes the back key and routes it to its own
+  // `onRequestClose`, which unwinds history → chat → close. This handler never
+  // sees the press while the page is up, so guessing at Kairo state here would
+  // only be a second, wrong source of truth.
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       if (selectedCompletedTask) {
         setSelectedCompletedTask(null);
-        return true;
-      }
-      if (isKairoActive) {
-        kairoRef.current?.close();
         return true;
       }
       if (isEditSheetOpen) {
@@ -1148,12 +1240,7 @@ function MobileApp() {
       return false;
     });
     return () => sub.remove();
-  }, [
-    isAddSheetOpen,
-    isEditSheetOpen,
-    isKairoActive,
-    selectedCompletedTask,
-  ]);
+  }, [isAddSheetOpen, isEditSheetOpen, selectedCompletedTask]);
 
   const renderProgressCompletedTaskItem = useCallback(
     ({ item }: { item: MobileTask }) => (
@@ -1272,10 +1359,7 @@ function MobileApp() {
       {/* Web-parity grid vignette behind everything. */}
       <GridBackground />
 
-      <Animated.View
-        style={[styles.chrome, chromeAnimStyle]}
-        pointerEvents={isKairoActive ? "none" : "auto"}
-      >
+      <View style={styles.chrome}>
       {/* Compact header: brand mark + view name on one line (the mark already
           says "Pravah"; no caps label needed), subtitle tucked beneath.
           Top inset comes from SafeAreaView — do not re-apply insets.top here. */}
@@ -1455,16 +1539,12 @@ function MobileApp() {
               isRefreshing={isRefreshing}
               tabBarHeight={tabBarHeight}
               onRefresh={handleRefresh}
-              overdueCount={isTimelineTriageReady ? overdueBuckets.totalOverdue : undefined}
+              overdueCount={isTimelineTriageReady ? displayOverdueCount : undefined}
               onOpenOverdue={canUseWorkspaceActions && isTimelineTriageReady ? openOverdue : undefined}
               onTriageOverdue={
                 canUseWorkspaceActions && isTimelineTriageReady ? handleManualTriage : undefined
               }
-              onRescheduleAllGoals={
-                canUseWorkspaceActions && isTimelineTriageReady && previewGroups.length > 0
-                  ? rescheduleAll
-                  : undefined
-              }
+
               layout={prefs.timelineLayout}
               completedTasks={displayCompletedTasks}
               onCompleteTask={canUseWorkspaceActions ? markDone : undefined}
@@ -1539,7 +1619,7 @@ function MobileApp() {
         />
       ) : null}
 
-      </Animated.View>
+      </View>
 
       {/* Bottom sheets */}
       <AddTaskSheet
@@ -1734,6 +1814,7 @@ function MobileApp() {
         totalOverdue={overdueBuckets.totalOverdue}
         groups={previewGroups}
         orphans={overdueBuckets.orphans}
+        isLoading={overduePreviewEnabled && overduePreviewData === undefined}
         selectedPreview={selectedPreview}
         applyDeadline={applyDeadline}
         today={today}
@@ -1747,15 +1828,15 @@ function MobileApp() {
         onApplyChanges={applyManualTriageChanges}
       />
 
-      {/* Kairo lives at the root so its overlay sits above tabs and FAB. The
-          parent dims the rest of the chrome via isKairoActive when the sheet
-          is open, matching web's 0.38-opacity fade behind the active panel. */}
+      {/* Kairo is a full-screen page in its own modal window, so it needs no
+          dimming, no backdrop, and no pointer-events guard on the chrome
+          behind it. Visibility is driven straight off isKairoActive. */}
       <Kairo
-        ref={kairoRef}
         tasks={kairoTasks}
         inboxTasks={kairoInboxTasks}
         isAllTasksReady={isAllTasksReady}
-        onActiveChange={setIsKairoActive}
+        visible={isKairoActive}
+        onClose={closeKairo}
         onOpenSettings={openSettingsModal}
       />
 

@@ -105,4 +105,57 @@ describe("mobile release classification", () => {
       }),
     ).toMatchObject({ ok: true, classification: "mobile-no-release" });
   });
+
+  it("blocks OTA when a build-time app asset changes", () => {
+    // The Expo config plugins read these at prebuild time and emit native
+    // drawables, so a JS-bundle-only OTA would not deliver them.
+    const result = classifyMobileRelease({
+      changedFiles: [
+        "apps/mobile/src/components/TaskCard.tsx",
+        "apps/mobile/assets/notification-icon.png",
+      ],
+      labels: ["mobile-ota"],
+      sourceFingerprint: "fingerprint-1",
+      supportedFingerprint: "fingerprint-1",
+      pullRequestBody: "## Mobile release notes\n\nBranding refresh.",
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.reasons).toContain(
+      "OTA includes native-critical paths: apps/mobile/assets/notification-icon.png",
+    );
+  });
+
+  it("keeps JS-bundled sounds OTA-safe", () => {
+    // These are imported in src/lib/sound.ts and travel in the JS bundle.
+    const result = classifyMobileRelease({
+      changedFiles: [
+        "apps/mobile/src/lib/sound.ts",
+        "apps/mobile/assets/sounds/pravah-capture.wav",
+      ],
+      labels: ["mobile-ota"],
+      sourceFingerprint: "fingerprint-1",
+      supportedFingerprint: "fingerprint-1",
+      pullRequestBody: "## Mobile release notes\n\nNew capture chime.",
+    });
+
+    expect(result).toMatchObject({ ok: true, classification: "mobile-ota" });
+  });
+
+  it("keeps component-bundled icons under src/assets OTA-safe", () => {
+    // SVGs imported from JS are transformed into the bundle, unlike the
+    // build-time assets in apps/mobile/assets/.
+    const result = classifyMobileRelease({
+      changedFiles: [
+        "apps/mobile/src/components/SettingsSheet.tsx",
+        "apps/mobile/src/assets/icons/settings-quiet-hours.svg",
+      ],
+      labels: ["mobile-ota"],
+      sourceFingerprint: "fingerprint-1",
+      supportedFingerprint: "fingerprint-1",
+      pullRequestBody: "## Mobile release notes\n\nQuieter hours icon.",
+    });
+
+    expect(result).toMatchObject({ ok: true, classification: "mobile-ota" });
+  });
 });

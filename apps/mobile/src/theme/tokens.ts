@@ -409,7 +409,7 @@ export const typography = {
  * `*AreaTopOpacity` / `*AreaBottomOpacity`, NOT as `rgba()` strings.
  * react-native-svg reads a gradient stop's alpha from `stopOpacity`; an alpha
  * baked into an `rgba()` passed to `stopColor` is dropped, so the fill renders
- * fully opaque and the chart turns into a solid black blob. `FlowingWaves` and
+ * fully opaque and the chart turns into a solid black blob. `SoftWaveField` and
  * `GridBackground` already use the split form — these tokens make it the rule.
  *
  * ── Heatmap ramp ────────────────────────────────────────────────────────

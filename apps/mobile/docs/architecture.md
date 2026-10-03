@@ -386,9 +386,11 @@ The app mixes bottom sheets and centered modals; each surface has a clear role.
 - includes Kairo, Sync, Reminders, Interaction, Appearance, and About
 - must remain scrollable and usable while keyboard is visible
 
-### Kairo sheet
+### Kairo page
 
-- near-full-screen assistant panel
+- full-screen assistant page rendered in its own `Modal` window
+- visibility is controlled by the app root through `visible` / `onClose`; the
+  page owns its own hardware-back unwinding (history → chat → close)
 - only time the app subscribes to all tasks for full-workspace AI context
 
 ## Settings Architecture

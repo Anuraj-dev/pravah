@@ -26,6 +26,7 @@ type Props = {
   onApplySuggestedDates: (goalId: string) => void;
   onRescheduleAllGoals?: () => void;
   onApplyChanges: (changes: PendingManualTriageChange[]) => void;
+  isLoading?: boolean;
 };
 
 export function OverdueTriageSheet(props: Props) {
@@ -54,7 +55,7 @@ function Header({ title, onBack }: { title: string; onBack?: () => void }) {
   </View>;
 }
 
-function OverviewView({ totalOverdue, groups, orphans, today, onOpenPreview, onApplySuggestedDates, onRescheduleAllGoals, onApplyChanges }: Props) {
+function OverviewView({ totalOverdue, groups, orphans, today, onOpenPreview, onApplySuggestedDates, onRescheduleAllGoals, onApplyChanges, isLoading }: Props) {
   const [pending, setPending] = useState<Map<string, PendingManualTriageChange>>(new Map());
   const [expandedId, setExpandedId] = useState<string | null>(orphans[0]?.taskId ?? null);
   const [pickerId, setPickerId] = useState<string | null>(null);
@@ -70,7 +71,7 @@ function OverviewView({ totalOverdue, groups, orphans, today, onOpenPreview, onA
   });
   return <>
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent} accessibilityLabel="Overdue tasks">
-      <Text style={styles.title}>{totalOverdue} overdue tasks</Text>
+      <Text style={styles.title}>{isLoading ? "Checking overdue tasks" : `${totalOverdue} overdue tasks`}</Text>
 
       {groups.length > 0 ? <View style={styles.section}>
         <SectionLabel label="Plans" />

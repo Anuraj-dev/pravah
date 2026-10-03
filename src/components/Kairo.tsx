@@ -26,39 +26,30 @@ import {
   useKairoTaskProposalDecisions,
 } from "../hooks/useKairoTaskProposalDecisions";
 import { KairoTaskProposalList } from "./KairoTaskProposalList";
+import { ChevronDownIcon } from "./ui/icons";
+import {
+  settingsKairoIcon,
+  appSettingsIcon,
+  kairoKeyIcon,
+} from "./ui/traced-icons";
+import type { SettingsCategory } from "./settings/SettingsPage";
 
-const ACCENT = "oklch(0.78 0.14 260)";
-const ACCENT_SOFT = "oklch(0.72 0.16 260 / 0.2)";
-const ACCENT_GLOW = "oklch(0.78 0.14 260 / 0.35)";
+const KairoMarkGlyph = settingsKairoIcon;
+const KairoKeyGlyph = kairoKeyIcon;
+const AppSettingsGlyph = appSettingsIcon;
+const ACCENT = "var(--color-accent-primary)";
+const ACCENT_SOFT = "var(--color-accent-primary-muted)";
 
 interface KairoProps {
   onActiveChange?: (active: boolean) => void;
   tasks: Task[];
   inboxTasks: Task[];
-  onOpenSettings?: () => void;
+  onOpenSettings?: (category?: SettingsCategory) => void;
 }
 
 function KairoMark({ size = 24 }: { size?: number }) {
-  return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size,
-        background: `linear-gradient(135deg, ${ACCENT}, oklch(0.6 0.18 310))`,
-        flexShrink: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        boxShadow: `0 0 14px ${ACCENT_GLOW}`,
-      }}
-    >
-      <svg width={size * 0.55} height={size * 0.55} viewBox="0 0 16 16" fill="none">
-        <path d="M3 11 C 5 7, 7 13, 8 9 S 11 7, 13 11" stroke="#0a0a0b" strokeWidth="1.6" fill="none" strokeLinecap="round" />
-        <circle cx="11.5" cy="5" r="1.5" fill="#0a0a0b" />
-      </svg>
-    </div>
-  );
+  // Mobile's quiet settings-kairo glyph instead of the old gradient coin.
+  return <KairoMarkGlyph size={size} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />;
 }
 
 function PulsingDot({ color, size = 5 }: { color: string; size?: number }) {
@@ -191,7 +182,7 @@ function KairoPlaceholderOverlay({ text, phase }: { text: string; phase: TypingP
         display: "flex",
         alignItems: "center",
         pointerEvents: "none",
-        color: "#8f8f96",
+        color: "var(--color-text-dim)",
         fontFamily: "var(--font-sans)",
         fontSize: 15,
         letterSpacing: "-0.01em",
@@ -207,8 +198,8 @@ function KairoPlaceholderOverlay({ text, phase }: { text: string; phase: TypingP
           width: 1,
           height: 17,
           marginLeft: 3,
-          background: "oklch(0.78 0.14 260 / 0.82)",
-          boxShadow: "0 0 10px oklch(0.78 0.14 260 / 0.35)",
+          background: "rgba(var(--color-accent-primary-rgb), 0.82)",
+          boxShadow: "0 0 10px rgba(var(--color-accent-primary-rgb), 0.35)",
           opacity: isWaiting ? undefined : 1,
           animation: isWaiting ? "kairoCaretBlink 1.05s steps(1, end) infinite" : "none",
         }}
@@ -224,8 +215,8 @@ function KairoThinking() {
         alignSelf: "flex-start",
         width: "min(420px, 82%)",
         padding: "12px 14px",
-        background: "linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.022))",
-        border: "1px solid rgba(255,255,255,.08)",
+        background: "linear-gradient(180deg, var(--color-fill-soft), var(--color-fill-faint))",
+        border: "1px solid var(--color-border-default)",
         borderLeft: `3px solid ${ACCENT}`,
         borderRadius: 4,
         display: "grid",
@@ -236,7 +227,7 @@ function KairoThinking() {
         style={{
           width: 130,
           height: 12,
-          background: "linear-gradient(90deg, #6f6f77 0%, #ededf2 42%, #6f6f77 78%)",
+          background: "linear-gradient(90deg, var(--color-text-muted) 0%, rgba(var(--color-accent-primary-rgb), 0.28) 42%, var(--color-text-muted) 78%)",
           backgroundSize: "220% 100%",
           WebkitBackgroundClip: "text",
           backgroundClip: "text",
@@ -257,7 +248,7 @@ function KairoThinking() {
             style={{
               width: `${width * 100}%`,
               height: 8,
-              background: "linear-gradient(90deg, rgba(255,255,255,.055), rgba(255,255,255,.15), rgba(255,255,255,.055))",
+              background: "linear-gradient(90deg, var(--color-fill-soft), var(--color-border-strong), var(--color-fill-soft))",
               backgroundSize: "220% 100%",
               animation: `kairoSkeletonSweep 1.4s ease-in-out ${index * 0.08}s infinite`,
             }}
@@ -300,14 +291,14 @@ function renderInlineMarkdown(text: string) {
   return parts.map((part, index) => {
     if (part.startsWith("`") && part.endsWith("`")) {
       return (
-        <code key={index} style={{ padding: "1px 4px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 3, color: "#d9d9df", fontFamily: "var(--font-mono)", fontSize: "0.92em" }}>
+        <code key={index} style={{ padding: "1px 4px", background: "var(--color-fill-soft)", border: "1px solid var(--color-border-default)", borderRadius: 3, color: "var(--color-text-secondary)", fontFamily: "var(--font-mono)", fontSize: "0.92em" }}>
           {part.slice(1, -1)}
         </code>
       );
     }
 
     if (part.startsWith("**") && part.endsWith("**")) {
-      return <strong key={index} style={{ color: "#f4f4f6", fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
+      return <strong key={index} style={{ color: "var(--color-text-primary)", fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
     }
 
     return part;
@@ -355,7 +346,7 @@ function KairoMarkdown({ text }: { text: string }) {
     flushList();
 
     if (trimmed.startsWith("### ")) {
-      blocks.push(<div key={`h-${blocks.length}`} style={{ marginTop: blocks.length ? 8 : 0, color: "#f3f3f5", fontWeight: 700, fontSize: 13 }}>{renderInlineMarkdown(trimmed.slice(4))}</div>);
+      blocks.push(<div key={`h-${blocks.length}`} style={{ marginTop: blocks.length ? 8 : 0, color: "var(--color-text-primary)", fontWeight: 700, fontSize: 13 }}>{renderInlineMarkdown(trimmed.slice(4))}</div>);
       return;
     }
 
@@ -511,9 +502,7 @@ export function Kairo({ onActiveChange, tasks, inboxTasks, onOpenSettings }: Kai
               position: "absolute",
               inset: 0,
               pointerEvents: "auto",
-              background: "rgba(0,0,0,.55)",
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)",
+              background: "var(--color-bg-overlay)",
               zIndex: 40,
               willChange: "opacity",
               cursor: "default",
@@ -547,15 +536,15 @@ export function Kairo({ onActiveChange, tasks, inboxTasks, onOpenSettings }: Kai
           style={{
             position: "relative",
             background: open
-              ? "linear-gradient(180deg, #111115 0%, #0c0c0f 100%)"
-              : "#101013",
+              ? "linear-gradient(180deg, var(--color-bg-surface) 0%, var(--color-bg-base) 100%)"
+              : "var(--color-bg-surface)",
             border: open
-              ? "1px solid oklch(0.78 0.14 260 / 0.32)"
-              : "1px solid rgba(255,255,255,.13)",
-            borderRadius: open ? 8 : 7,
+              ? "1px solid var(--color-accent-primary)"
+              : "1px solid var(--color-border-default)",
+            borderRadius: open ? 14 : 12,
             boxShadow: open
-              ? `0 46px 90px rgba(0,0,0,.58), 0 0 0 1px rgba(255,255,255,.04), 0 0 90px oklch(0.78 0.14 260 / 0.22)`
-              : `0 20px 50px rgba(0,0,0,.5), 0 0 0 1px ${ACCENT_GLOW}`,
+              ? `0 46px 90px rgba(39, 30, 22, 0.32), 0 0 0 1px var(--color-border-subtle)`
+              : `0 16px 40px rgba(39, 30, 22, 0.22), 0 1px 2px rgba(44, 33, 24, 0.12)`,
             overflow: "hidden",
             transition: tx(["box-shadow", "border-color", "background-color"], "slow"),
           }}
@@ -569,21 +558,9 @@ export function Kairo({ onActiveChange, tasks, inboxTasks, onOpenSettings }: Kai
                   inset: 0,
                   pointerEvents: "none",
                   background:
-                    "linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px)",
+                    "linear-gradient(var(--color-fill-faint) 1px, transparent 1px), linear-gradient(90deg, var(--color-fill-faint) 1px, transparent 1px)",
                   backgroundSize: "48px 48px",
                   opacity: 0.26,
-                }}
-              />
-              <div
-                aria-hidden
-                style={{
-                  position: "absolute",
-                  inset: "0 auto 0 0",
-                  width: 3,
-                  background: isKairoConfigured(config)
-                    ? "linear-gradient(180deg, oklch(0.78 0.18 150), oklch(0.78 0.14 260))"
-                    : "linear-gradient(180deg, oklch(0.72 0.2 25), oklch(0.78 0.14 260))",
-                  boxShadow: `0 0 24px ${ACCENT_GLOW}`,
                 }}
               />
             </>
@@ -591,16 +568,16 @@ export function Kairo({ onActiveChange, tasks, inboxTasks, onOpenSettings }: Kai
           {/* Header when open */}
           {open && (
             <>
-              <div style={{ position: "relative", padding: "18px 20px 14px 24px", display: "flex", alignItems: "flex-start", gap: 13, borderBottom: "1px solid rgba(255,255,255,.07)" }}>
+              <div style={{ position: "relative", padding: "18px 20px 14px 24px", display: "flex", alignItems: "flex-start", gap: 13, borderBottom: "1px solid var(--color-border-subtle)" }}>
                 <KairoMark size={30} />
                 <div style={{ minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: -0.2, color: "#f3f3f5" }}>Kairo</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: -0.2, color: "var(--color-text-primary)" }}>Kairo</div>
                     <span
                       style={{
-                        border: "1px solid rgba(255,255,255,.08)",
-                        background: "rgba(255,255,255,.035)",
-                        color: isKairoConfigured(config) ? "oklch(0.78 0.18 150)" : "oklch(0.72 0.2 25)",
+                        border: "1px solid var(--color-border-default)",
+                        background: "var(--color-fill-faint)",
+                        color: isKairoConfigured(config) ? "var(--color-success)" : "var(--color-error)",
                         fontFamily: "var(--font-mono)",
                         fontSize: 9,
                         letterSpacing: 1.2,
@@ -610,8 +587,8 @@ export function Kairo({ onActiveChange, tasks, inboxTasks, onOpenSettings }: Kai
                       {isKairoConfigured(config) ? "ONLINE" : "SETUP"}
                     </span>
                   </div>
-                  <div style={{ marginTop: 5, fontSize: 10.5, color: "#74747c", fontFamily: "var(--font-mono)", letterSpacing: 1, display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
-                    <PulsingDot color={isKairoConfigured(config) ? "oklch(0.78 0.18 150)" : "oklch(0.72 0.2 25)"} size={5} />
+                  <div style={{ marginTop: 5, fontSize: 10.5, color: "var(--color-text-dim)", fontFamily: "var(--font-mono)", letterSpacing: 1, display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                    <PulsingDot color={isKairoConfigured(config) ? "var(--color-success)" : "var(--color-error)"} size={5} />
                     <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {isKairoConfigured(config) ? `${getKairoProviderLabel(config.providerFormat)} · ${config.model}` : "Provider config required"}
                     </span>
@@ -620,53 +597,57 @@ export function Kairo({ onActiveChange, tasks, inboxTasks, onOpenSettings }: Kai
                 <div style={{ flex: 1 }} />
                 <button
                   title="Open settings"
-                  onClick={onOpenSettings}
-                  style={{ width: 26, height: 26, borderRadius: 4, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", color: isKairoConfigured(config) ? "#c2c2c8" : ACCENT, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}
+                  aria-label="Open settings"
+                  onClick={() => onOpenSettings?.("kairo")}
+                  style={{ width: 26, height: 26, borderRadius: 7, background: "var(--color-fill-faint)", border: "1px solid var(--color-border-default)", color: isKairoConfigured(config) ? "var(--color-text-secondary)" : "var(--color-accent-primary)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
                 >
-                  ⚙
+                  <AppSettingsGlyph size={13} />
                 </button>
                 <button
                   onClick={() => setOpen(false)}
                   aria-label="Minimize"
-                  style={{ width: 26, height: 26, borderRadius: 4, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", color: "#6b6b72", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}
+                  style={{ width: 26, height: 26, borderRadius: 7, background: "var(--color-fill-faint)", border: "1px solid var(--color-border-default)", color: "var(--color-text-muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
                 >
-                  —
+                  <ChevronDownIcon size={14} strokeWidth={2} />
                 </button>
               </div>
 
               {!isKairoConfigured(config) && (
-                <div
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    onOpenSettings?.("kairo");
+                  }}
+                  aria-label="Set up Kairo"
                   style={{
                     position: "relative",
                     margin: "14px 20px 0 24px",
                     padding: "11px 12px",
-                    background: "rgba(255,255,255,.03)",
-                    border: "1px solid rgba(255,255,255,.07)",
-                    borderRadius: 4,
+                    background: "var(--color-warning-muted)",
+                    border: "1px solid var(--color-warning)",
+                    borderRadius: 8,
                     display: "flex",
                     alignItems: "center",
                     gap: 10,
+                    cursor: "pointer",
+                    textAlign: "left",
+                    transition: tx(["background-color"], "instant"),
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background =
+                      "rgba(128, 87, 18, 0.2)";
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background =
+                      "var(--color-warning-muted)";
                   }}
                 >
-                  <div style={{ flex: 1, fontSize: 12, color: "#c2c2c8", lineHeight: 1.5 }}>
-                    Add your provider format, API key, endpoint URL, and model in Settings before using Kairo.
-                  </div>
-                  <button
-                    onClick={onOpenSettings}
-                    style={{
-                      padding: "6px 10px",
-                      background: ACCENT_SOFT,
-                      border: "1px solid oklch(0.78 0.14 260 / 0.35)",
-                      borderRadius: 3,
-                      color: ACCENT,
-                      fontSize: 11,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
-                  >
-                    OPEN
-                  </button>
-                </div>
+                  <KairoKeyGlyph size={16} style={{ color: "var(--color-warning)", flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: 12, color: "var(--color-text-primary)", lineHeight: 1.5 }}>
+                    Open Settings → Kairo and finish provider setup
+                  </span>
+                  <span style={{ color: "var(--color-warning)", fontFamily: "var(--font-mono)", fontSize: 12 }}>→</span>
+                </button>
               )}
 
               {/* Messages */}
@@ -696,22 +677,22 @@ export function Kairo({ onActiveChange, tasks, inboxTasks, onOpenSettings }: Kai
                       onClick={() => sendMessage(p)}
                       style={{
                         padding: "7px 11px",
-                        background: "rgba(255,255,255,.03)",
-                        border: "1px solid rgba(255,255,255,.07)",
+                        background: "var(--color-fill-faint)",
+                        border: "1px solid var(--color-border-subtle)",
                         borderRadius: 4,
                         fontSize: 11.5,
-                        color: "#c2c2c8",
+                        color: "var(--color-text-secondary)",
                         cursor: "pointer",
                         fontFamily: "var(--font-sans)",
                         transition: tx(["background-color", "border-color"], "instant"),
                       }}
                       onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = "oklch(0.78 0.14 260 / 0.55)";
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(var(--color-accent-primary-rgb), 0.55)";
                         (e.currentTarget as HTMLButtonElement).style.background = ACCENT_SOFT;
                       }}
                       onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,.07)";
-                        (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,.03)";
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-border-subtle)";
+                        (e.currentTarget as HTMLButtonElement).style.background = "var(--color-fill-faint)";
                       }}
                     >
                       {p}
@@ -730,24 +711,12 @@ export function Kairo({ onActiveChange, tasks, inboxTasks, onOpenSettings }: Kai
               gap: 12,
               minHeight: open ? 70 : 56,
               padding: open ? "13px 16px 14px 24px" : "13px 18px",
-              borderTop: open ? "1px solid rgba(255,255,255,.08)" : "none",
-              background: open ? "rgba(0,0,0,.16)" : "transparent",
+              borderTop: open ? "1px solid var(--color-border-default)" : "none",
+              background: open ? "rgba(39, 30, 22, 0.1)" : "transparent",
               position: "relative",
             }}
           >
             {!open && <KairoMark size={30} />}
-            {!open && (
-              <span
-                aria-hidden
-                style={{
-                  position: "absolute",
-                  inset: "10px auto 10px 0",
-                  width: 3,
-                  background: `linear-gradient(180deg, ${ACCENT}, transparent)`,
-                  boxShadow: `0 0 18px ${ACCENT_GLOW}`,
-                }}
-              />
-            )}
             <div style={{ position: "relative", flex: 1 }}>
               {!open && val.length === 0 && (
                 <KairoPlaceholderOverlay
@@ -780,8 +749,8 @@ export function Kairo({ onActiveChange, tasks, inboxTasks, onOpenSettings }: Kai
                   outline: "none",
                   width: "100%",
                   fontSize: open ? 15 : 15,
-                  color: open ? "#ededef" : "transparent",
-                  caretColor: "#ededef",
+                  color: open ? "var(--color-text-primary)" : "transparent",
+                  caretColor: "var(--color-text-primary)",
                   fontFamily: "var(--font-sans)",
                   padding: open ? "10px 0" : "7px 0",
                 }}
@@ -792,19 +761,21 @@ export function Kairo({ onActiveChange, tasks, inboxTasks, onOpenSettings }: Kai
                 onClick={() => sendMessage(val.trim())}
                 disabled={!val.trim()}
                 style={{
-                  padding: "8px 13px",
-                  fontSize: 11,
+                  padding: "8px 16px",
+                  minWidth: 64,
+                  fontSize: 11.5,
                   fontFamily: "var(--font-sans)",
                   fontWeight: 600,
-                  color: val.trim() ? "#0a0a0b" : "#6b6b72",
-                  background: val.trim() ? ACCENT : "rgba(255,255,255,.07)",
+                  letterSpacing: "0.04em",
+                  color: "var(--color-text-inverse)",
+                  background: val.trim() ? ACCENT : "var(--color-border-subtle)",
                   border: "none",
-                  borderRadius: 4,
+                  borderRadius: 8,
                   cursor: val.trim() ? "pointer" : "not-allowed",
                   transition: tx(["background-color", "color"], "instant"),
                 }}
               >
-                SEND
+                Send
               </button>
             ) : (
               <kbd>⌘J</kbd>
@@ -830,7 +801,7 @@ function KairoMsg({
   if (m.from === "me") {
     return (
       <div style={{ alignSelf: "flex-end", maxWidth: "78%" }}>
-        <div style={{ padding: "11px 13px", background: "oklch(0.72 0.16 260 / 0.16)", color: "#e8e8ef", border: "1px solid oklch(0.78 0.14 260 / 0.28)", borderLeft: `3px solid ${ACCENT}`, borderRadius: 4, fontSize: 13, lineHeight: 1.5 }}>
+        <div style={{ padding: "11px 13px", background: "var(--color-accent-primary-muted)", color: "var(--color-text-primary)", border: "1px solid rgba(var(--color-accent-primary-rgb), 0.28)", borderLeft: `3px solid ${ACCENT}`, borderRadius: 4, fontSize: 13, lineHeight: 1.5 }}>
           {m.text}
         </div>
       </div>
@@ -839,7 +810,7 @@ function KairoMsg({
   return (
     <div style={{ alignSelf: "flex-start", maxWidth: "84%", display: "grid", gridTemplateColumns: "24px minmax(0, 1fr)", gap: 10, alignItems: "flex-start" }}>
       <KairoMark size={24} />
-      <div style={{ padding: "12px 14px", background: "linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.025))", color: "#ededef", border: "1px solid rgba(255,255,255,.08)", borderLeft: "3px solid rgba(255,255,255,.16)", borderRadius: 4, fontSize: 13, lineHeight: 1.6, boxShadow: "inset 0 1px 0 rgba(255,255,255,.04)" }}>
+      <div style={{ padding: "12px 14px", background: "linear-gradient(180deg, var(--color-fill-soft), var(--color-fill-faint))", color: "var(--color-text-primary)", border: "1px solid var(--color-border-default)", borderLeft: "3px solid var(--color-border-strong)", borderRadius: 4, fontSize: 13, lineHeight: 1.6, boxShadow: "inset 0 1px 0 var(--color-fill-soft)" }}>
         <div>
           <KairoMarkdown text={visibleText} />
           {animate && visibleText.length < m.text.length && (

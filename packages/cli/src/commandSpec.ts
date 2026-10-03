@@ -54,6 +54,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   { path: ["operations", "show"], summary: "Show one operation.", kind: "read", requiredScopes: ["tasks:read"], target: { label: "<operation-id>", kind: "operation" }, options: [] },
   { path: ["operations", "undo"], summary: "Undo one operation or a group.", kind: "write", requiredScopes: ["tasks:write"], target: { label: "<operation-id>", kind: "operation" }, targetOptional: true, options: [value("group", "<group-id>", "Undo an operation group."), ...write], supportsDryRun: true, generatedIdempotency: true },
   { path: ["agent", "context"], summary: "Show compact ranked task-planning context.", kind: "read", requiredScopes: ["tasks:read"], options: [] },
+  { path: ["watch"], summary: "Subscribe to Convex and maintain a local snapshot for widgets.", kind: "read", requiredScopes: ["tasks:read"], options: [flag("print", "Print the existing snapshot and exit without any network call."), flag("path", "Print the snapshot file path and exit."), value("format", "<snapshot|waybar>", "Output shape: local snapshot (default) or one waybar JSON line per update.")] },
 ];
 
 const globalOptions = [flag("json", "Emit the v2 JSON envelope."), flag("debug", "Append sanitized diagnostics to errors."), flag("no-color", "Disable terminal colour."), flag("help", "Show help."), flag("version", "Show CLI version.")];

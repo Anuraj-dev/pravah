@@ -12,6 +12,7 @@ LOG="${PRAVAH_FAKE_LOG:-/tmp/pravah-fake.log}"
 python3 - "$@" <<'PY'
 import datetime as dt
 import json
+import os
 import sys
 
 args = sys.argv[1:]
@@ -26,10 +27,16 @@ if not cmd_parts:
     command = ""
 elif cmd_parts[0] == "doctor":
     command = "doctor"
-elif cmd_parts[0] in ("auth", "tasks", "goals", "operations") and len(cmd_parts) > 1:
+elif cmd_parts[0] in ("auth", "tasks", "goals", "operations", "watch") and len(cmd_parts) > 1:
     command = cmd_parts[0] + " " + cmd_parts[1]
 else:
     command = " ".join(cmd_parts)
+
+# `pravah watch --path` prints a bare path, not a v2 envelope, so the widget can
+# FileView it. The test harness points this at a file the test controls.
+if cmd_parts and cmd_parts[0] == "watch" and "--path" in args:
+    print(os.environ.get("PRAVAH_FAKE_SNAPSHOT", "/tmp/pravah-fake-snapshot.json"), flush=True)
+    sys.exit(0)
 
 
 def emit(ok, data=None, error=None, exit_code=None):
@@ -124,7 +131,7 @@ tasks = [
         "title": "Already finished",
         "status": "completed",
         "deadline": today_s,
-        "completedAt": 1,
+        "completedAt": int(dt.datetime.combine(today, dt.time(12, 0)).timestamp() * 1000),
     },
     {
         "id": "t_cancelled",
@@ -215,6 +222,15 @@ if command.startswith("tasks ") or command.startswith("goals ") or command == "o
             "undoExpiresAt": "2099-01-01T00:00:00.000Z",
         }
     emit(True, data)
+
+if cmd_parts and cmd_parts[0] == "watch" and "--print" in args:
+    snap_path = os.environ.get("PRAVAH_FAKE_SNAPSHOT", "")
+    try:
+        with open(snap_path) as fh:
+            emit(True, json.load(fh))
+    except Exception:
+        emit(False, error={"code": "no_snapshot", "message": "no watch snapshot"})
+    sys.exit(0)
 
 emit(False, error={"code": "unknown_command", "message": "stub does not implement " + command})
 PY

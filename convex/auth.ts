@@ -5,6 +5,7 @@ import { query } from "./_generated/server";
 import { components } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import authConfig from "./auth.config";
+import { ownerConvexTokenPlugin } from "./ownerConvexToken";
 import { getAuthTrustedOrigins, getPrimarySiteUrl } from "./origins";
 
 function readEnv() {
@@ -46,7 +47,16 @@ export function createAuth(ctx: GenericCtx<DataModel>) {
     },
     plugins: [
       crossDomain({ siteUrl }),
-      convex({ authConfig }),
+      convex({
+        authConfig,
+        // The login session is already 7 days. This is the Convex JWT.
+        // A 15-minute default re-authenticates the socket and re-runs every
+        // live query. One day keeps a revoked token bounded.
+        jwt: { expirationSeconds: 60 * 60 * 24 },
+      }),
+      // Server-only endpoint that mints a short-lived Convex token for an
+      // automation credential's owner. Not mounted as an HTTP route.
+      ownerConvexTokenPlugin({ convexSiteUrl: readEnv()?.CONVEX_SITE_URL ?? "" }),
     ],
   });
 }

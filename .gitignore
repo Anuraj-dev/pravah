@@ -61,3 +61,7 @@ tmp/
 .zencoder/
 skills/
 skills-lock.json
+
+# Agent tooling local state
+.impeccable/hook.cache.json
+.grok/

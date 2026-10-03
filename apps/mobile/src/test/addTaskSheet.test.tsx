@@ -10,8 +10,12 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockConfirm } = vi.hoisted(() => ({
+const { mockConfirm, mockGoals } = vi.hoisted(() => ({
   mockConfirm: vi.fn(async () => true),
+  mockGoals: [
+    { id: "goal-systemd", text: "Systemd Manager" },
+    { id: "goal-pravah", text: "Pravah Mobile Polish" },
+  ],
 }));
 
 // ─── react-native mock ────────────────────────────────────────────────────────
@@ -164,9 +168,13 @@ vi.mock("expo-linear-gradient", () => ({
 }));
 
 // ─── expo-haptics mock ────────────────────────────────────────────────────────
+// A local vi.mock replaces the whole module, shadowing the wider mock in
+// setup.ts — so anything the component calls has to be declared here too.
+// haptic.selection() calls selectionAsync, which the workbench controls use.
 vi.mock("expo-haptics", () => ({
   impactAsync: vi.fn(async () => undefined),
   notificationAsync: vi.fn(async () => undefined),
+  selectionAsync: vi.fn(async () => undefined),
   ImpactFeedbackStyle: { Light: "light", Medium: "medium" },
   NotificationFeedbackType: { Success: "success", Error: "error" },
 }));
@@ -187,6 +195,7 @@ vi.mock("../theme/tokens", () => ({
   colors: {
     accent: "#06f",
     accentSoft: "#003",
+    accentDim: "#002",
     accentGlow: "#036",
     bg: "#000",
     bgCard: "#111",
@@ -199,6 +208,10 @@ vi.mock("../theme/tokens", () => ({
     textMuted: "#999",
     textInverse: "#000",
     error: "#f00",
+    warning: "#fa0",
+    priorityP1: "#a00",
+    priorityP2: "#b60",
+    priorityP3: "#666",
   },
   fonts: { sans: "sans", sansSemibold: "sans-semibold", sansBold: "sans-bold" },
   radii: { md: 8, lg: 12, xl: 16, full: 9999 },
@@ -239,9 +252,45 @@ vi.mock("../components/TaskMetaFields", () => ({
     ),
 }));
 
-// ─── useGoals mock ────────────────────────────────────────────────────────────
+vi.mock("../components/ThemedTimePicker", () => ({
+  ThemedTimePicker: ({
+    visible,
+    onSelect,
+  }: {
+    visible?: boolean;
+    onSelect?: (value: string) => void;
+  }) =>
+    visible
+      ? React.createElement(
+          "button",
+          { type: "button", onClick: () => onSelect?.("16:30") },
+          "Choose 4:30 PM",
+        )
+      : null,
+}));
+
+vi.mock("../components/SearchField", () => ({
+  SearchField: ({
+    value,
+    onChangeText,
+    placeholder,
+    accessibilityLabel,
+  }: {
+    value?: string;
+    onChangeText?: (value: string) => void;
+    placeholder?: string;
+    accessibilityLabel?: string;
+  }) =>
+    React.createElement("input", {
+      value: value ?? "",
+      placeholder,
+      "aria-label": accessibilityLabel,
+      onChange: (event: React.ChangeEvent<HTMLInputElement>) => onChangeText?.(event.target.value),
+    }),
+}));
+
 vi.mock("../hooks/useGoals", () => ({
-  useGoals: () => ({ goals: [] }),
+  useGoals: () => ({ goals: mockGoals }),
 }));
 
 // ─── useGoalMutations mock ────────────────────────────────────────────────────
@@ -507,6 +556,79 @@ describe("AddTaskSheet", () => {
         priority: undefined,
         goalId: undefined,
       });
+    });
+  });
+
+  it("treats Today as an unsaved planning choice", () => {
+    render(
+      <AddTaskSheet
+        ref={ref}
+        onAdd={mockOnAdd}
+        isValidDeadline={mockIsValidDeadline}
+        onSheetChange={mockOnSheetChange}
+      />
+    );
+
+    act(() => ref.current?.open());
+    fireEvent.click(screen.getByRole("button", { name: "When, Inbox" }));
+    fireEvent.click(screen.getByRole("button", { name: "Today" }));
+
+    expect(ref.current?.hasDraftChanges()).toBe(true);
+    expect(screen.getByText("Discard")).toBeTruthy();
+  });
+
+  it("uses the Edit workbench schedule and priority presentation", () => {
+    render(
+      <AddTaskSheet
+        ref={ref}
+        onAdd={mockOnAdd}
+        isValidDeadline={mockIsValidDeadline}
+        onSheetChange={mockOnSheetChange}
+      />
+    );
+
+    act(() => ref.current?.open());
+    // The capture workbench is two-step: picking a date returns to the planning
+    // summary, so the time row is reached by reopening the When editor.
+    fireEvent.click(screen.getByRole("button", { name: "When, Inbox" }));
+    fireEvent.click(screen.getByRole("button", { name: "Today" }));
+    fireEvent.click(screen.getByRole("button", { name: "When, Today" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add time" }));
+    fireEvent.click(screen.getByText("Choose 4:30 PM"));
+    expect(screen.getByRole("button", { name: "When, Today · 4:30 PM" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Priority, No priority" }));
+    fireEvent.click(screen.getByText("P2 — Medium"));
+    expect(screen.getByRole("button", { name: "Priority, P2 — Medium" })).toBeTruthy();
+  });
+
+  it("searches Capture goals and stages a selection", async () => {
+    render(
+      <AddTaskSheet
+        ref={ref}
+        onAdd={mockOnAdd}
+        isValidDeadline={mockIsValidDeadline}
+        onSheetChange={mockOnSheetChange}
+      />
+    );
+
+    act(() => ref.current?.open());
+    fireEvent.click(screen.getByRole("button", { name: "Goal, No goal" }));
+    const search = screen.getByRole("textbox", { name: "Search goals" });
+
+    fireEvent.change(search, { target: { value: "missing" } });
+    expect(screen.getByText("No Goals match “missing”.")).toBeTruthy();
+    fireEvent.change(search, { target: { value: "Systemd" } });
+    fireEvent.click(screen.getByText("Systemd Manager"));
+    expect(screen.getByRole("button", { name: "Goal, Systemd Manager" })).toBeTruthy();
+
+    fireEvent.change(screen.getByTestId("title-input"), { target: { value: "Linked task" } });
+    await act(async () => fireEvent.click(screen.getByText("Save & close")));
+
+    await waitFor(() => {
+      expect(mockOnAdd).toHaveBeenCalledWith(expect.objectContaining({
+        goalId: "goal-systemd",
+      }));
     });
   });
 

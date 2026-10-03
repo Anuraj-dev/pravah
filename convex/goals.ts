@@ -1,7 +1,52 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { requireTokenIdentifier } from "./authHelpers";
+
+export type GoalDedupeCandidate = {
+  _id: string;
+  ownerTokenIdentifier: string;
+  clientId: string;
+  createdAt: number;
+};
+
+/**
+ * Split goal rows into the ones to keep and the ones to delete so that each
+ * (ownerTokenIdentifier, clientId) pair survives exactly once.
+ *
+ * Convex indexes are not unique, so a read-then-insert pair that races inserts
+ * two rows with the same clientId: the inserts target different document ids,
+ * so OCC sees no conflict on a shared document and lets both commit.
+ *
+ * `goals.upsert` patches whichever row the index returns first, which is the
+ * first-inserted row, so the oldest row also holds the current field values.
+ * `createdAt` then `_id` picks a deterministic winner when timestamps tie.
+ * Grouping is per owner, so the same clientId under two owners is left alone.
+ */
+export function selectCanonicalGoalRows<T extends GoalDedupeCandidate>(
+  rows: T[],
+): { keep: T[]; remove: T[] } {
+  const grouped = new Map<string, T[]>();
+  for (const row of rows) {
+    const key = `${row.ownerTokenIdentifier}\u0000${row.clientId}`;
+    const group = grouped.get(key);
+    if (group) group.push(row);
+    else grouped.set(key, [row]);
+  }
+
+  const keep: T[] = [];
+  const remove: T[] = [];
+  for (const group of grouped.values()) {
+    const ordered = [...group].sort(
+      (a, b) => a.createdAt - b.createdAt || a._id.localeCompare(b._id),
+    );
+    const [winner, ...losers] = ordered;
+    if (winner) keep.push(winner);
+    remove.push(...losers);
+  }
+  return { keep, remove };
+}
 
 export async function updateGoalForOwner(
   ctx: MutationCtx,
@@ -99,6 +144,96 @@ export const upsert = mutation({
         updatedAt: now,
       });
     }
+  },
+});
+
+export const bulkUpsert = mutation({
+  args: {
+    goals: v.array(
+      v.object({
+        clientId: v.string(),
+        text: v.string(),
+        description: v.optional(v.string()),
+        deadline: v.optional(v.string()),
+        priority: v.optional(v.union(v.literal("p1"), v.literal("p2"), v.literal("p3"))),
+        createdAt: v.number(),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const tokenIdentifier = await requireTokenIdentifier(ctx);
+    const existingRows = await ctx.db
+      .query("goals")
+      .withIndex("by_owner", (q) => q.eq("ownerTokenIdentifier", tokenIdentifier))
+      .collect();
+
+    const { keep, remove: duplicates } = selectCanonicalGoalRows(existingRows);
+    for (const row of duplicates) await ctx.db.delete(row._id);
+
+    const idByClientId = new Map<string, Id<"goals">>();
+    for (const row of keep) idByClientId.set(row.clientId, row._id);
+
+    const now = Date.now();
+    let inserted = 0;
+    let updated = 0;
+    for (const goal of args.goals) {
+      const existingId = idByClientId.get(goal.clientId);
+      if (existingId) {
+        await ctx.db.patch(existingId, {
+          text: goal.text,
+          description: goal.description,
+          deadline: goal.deadline,
+          priority: goal.priority,
+          updatedAt: now,
+        });
+        updated += 1;
+        continue;
+      }
+      const id = await ctx.db.insert("goals", {
+        clientId: goal.clientId,
+        text: goal.text,
+        description: goal.description,
+        deadline: goal.deadline,
+        priority: goal.priority,
+        ownerTokenIdentifier: tokenIdentifier,
+        createdAt: goal.createdAt,
+        updatedAt: now,
+      });
+      // Registering the new id is what makes a repeated clientId inside one
+      // request patch the row just inserted instead of inserting a twin.
+      idByClientId.set(goal.clientId, id);
+      inserted += 1;
+    }
+
+    return { inserted, updated, deduped: duplicates.length };
+  },
+});
+
+export const dedupe = internalMutation({
+  args: {
+    ownerTokenIdentifier: v.optional(v.string()),
+    dryRun: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const owner = args.ownerTokenIdentifier;
+    const rows = owner
+      ? await ctx.db
+          .query("goals")
+          .withIndex("by_owner", (q) => q.eq("ownerTokenIdentifier", owner))
+          .collect()
+      : await ctx.db.query("goals").collect();
+
+    const { keep, remove } = selectCanonicalGoalRows(rows);
+    if (args.dryRun !== true) {
+      for (const row of remove) await ctx.db.delete(row._id);
+    }
+    return {
+      scanned: rows.length,
+      kept: keep.length,
+      removed: remove.length,
+      dryRun: args.dryRun === true,
+      removedClientIds: remove.map((row) => row.clientId),
+    };
   },
 });
 

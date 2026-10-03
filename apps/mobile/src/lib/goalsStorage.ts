@@ -30,6 +30,24 @@ function makeId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+/**
+ * Keep the first entry per goal id, preserving list order.
+ *
+ * The server dedupes by (owner, clientId) too, so this is a courtesy that
+ * keeps the pushed payload small and makes the outcome obvious when a local
+ * cache ever ends up holding the same goal twice.
+ */
+export function dedupeById(goals: GoalItem[]): GoalItem[] {
+  const seen = new Set<string>();
+  const out: GoalItem[] = [];
+  for (const goal of goals) {
+    if (seen.has(goal.id)) continue;
+    seen.add(goal.id);
+    out.push(goal);
+  }
+  return out;
+}
+
 function sanitize(value: unknown): GoalItem[] {
   if (!Array.isArray(value)) return [];
   const out: GoalItem[] = [];

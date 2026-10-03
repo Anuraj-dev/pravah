@@ -12,11 +12,9 @@
  *     synchronously on chat switch so unsaved edits land before we swap.
  *
  * Hydration model:
- *   - On mount we load the index, then the active chat (or seed a fresh one
- *     with [GREETING] if no chats exist yet).
- *   - `isHydrated` flips true only after the active chat resolves so the UI
- *     can defer message rendering until the real history is in hand and we
- *     don't briefly flash the greeting over a real conversation.
+ *   - On mount we load the index, then the active chat (or seed a fresh, empty
+ *     one if no chats exist yet). A fresh chat carries no messages — the
+ *     composer is the only thing on screen until the user asks something.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -36,11 +34,6 @@ import {
 
 const SAVE_DEBOUNCE_MS = 500;
 
-export const KAIRO_GREETING: KairoMessage = {
-  from: "kairo",
-  text: "Hi, I'm Kairo. I can help you plan your week, sort priorities, and make sense of your schedule. What's on your mind?",
-};
-
 function makeFreshChat(): StoredChat {
   const now = Date.now();
   return {
@@ -48,7 +41,7 @@ function makeFreshChat(): StoredChat {
     title: "New chat",
     createdAt: now,
     updatedAt: now,
-    messages: [KAIRO_GREETING],
+    messages: [],
   };
 }
 

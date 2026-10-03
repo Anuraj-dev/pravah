@@ -663,6 +663,29 @@ describe("Task-image mobile coordinator", () => {
     expect(sourceStore.remove).toHaveBeenCalledWith("upl_mobile_1.jpg");
   });
 
+  it("copies a ready upload into the local library before deleting the staged source", async () => {
+    const dependencies = createDependencies();
+    const sourceStore = {
+      persist: vi.fn(async () => ({ sourceKey: "upl_mobile_1.jpg", uri: "file:///private/durable.jpg" })),
+      resolve: vi.fn(async () => "file:///private/durable.jpg"),
+      remove: vi.fn(async () => undefined),
+    };
+    const libraryStore = { save: vi.fn(async () => undefined) };
+    dependencies.verify = vi.fn(async () => ({ state: "ready" as const }));
+    const coordinator = createTaskImageCoordinator({ ...dependencies, sourceStore, libraryStore });
+
+    await coordinator.select("photos");
+    coordinator.associateUploadsWithTask("task_1", ["upl_mobile_1"]);
+    coordinator.associateTaskImageOrder("task_1", ["image_1"]);
+    await coordinator.beginUploadAfterSave();
+
+    expect(libraryStore.save).toHaveBeenCalledWith("image_1", "file:///private/durable.jpg");
+    expect(sourceStore.remove).toHaveBeenCalledWith("upl_mobile_1.jpg");
+    expect(libraryStore.save.mock.invocationCallOrder[0]).toBeLessThan(
+      sourceStore.remove.mock.invocationCallOrder[0],
+    );
+  });
+
   it("does not advance the client attempt until the provider grant is accepted", async () => {
     const dependencies = createDependencies();
     dependencies.issueGrant = vi

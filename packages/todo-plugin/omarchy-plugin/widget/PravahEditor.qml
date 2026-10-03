@@ -52,6 +52,7 @@ Item {
     else selectedGoalId = presetGoalId || ""
     error = ""
     dueButton.refreshLabel()
+    formScroll.contentItem.contentY = 0
     visible = true
     titleInput.forceActiveFocus()
   }
@@ -99,6 +100,7 @@ Item {
     })
   }
 
+  implicitHeight: form.implicitHeight + Style.space(4)
   visible: false
 
   Rectangle {
@@ -107,10 +109,20 @@ Item {
 
     MouseArea { anchors.fill: parent; onClicked: {} }
 
-    Column {
+    ScrollView {
+      id: formScroll
+      objectName: "editorFormScroll"
       anchors.fill: parent
       anchors.margins: Style.space(2)
-      spacing: Style.space(7)
+      contentWidth: availableWidth
+      contentHeight: form.implicitHeight
+      clip: true
+      ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+
+      Column {
+        id: form
+        width: formScroll.availableWidth
+        spacing: Style.space(7)
 
       RowLayout {
         width: parent.width
@@ -295,6 +307,7 @@ Item {
           focusable: false
           onClicked: editor.save()
         }
+      }
       }
     }
 

@@ -68,7 +68,6 @@ function computeIsActiveListLoading(
   loading: WorkspaceLoadingState,
 ): boolean {
   if (shouldUseWorkspaceSnapshot) return false;
-  if (!loading.imageCollectionsReady) return true;
 
   switch (activeTab) {
     case "timeline":
@@ -85,11 +84,7 @@ function computeIsActiveListLoading(
 }
 
 export function deriveDisplayWorkspace(input: DisplayWorkspaceInput): DisplayWorkspace {
-  const hasLiveWorkspaceData =
-    !input.loading.inbox &&
-    !input.loading.timeline &&
-    !input.loading.completed &&
-    input.loading.imageCollectionsReady;
+  const hasLiveWorkspaceData = !input.loading.inbox && !input.loading.timeline;
   const shouldRenderOptimisticShell = input.sessionLoading && input.hasCachedSessionHint;
   const shouldUseWorkspaceSnapshot =
     input.sessionReady &&
@@ -171,13 +166,11 @@ export function deriveDisplayWorkspace(input: DisplayWorkspaceInput): DisplayWor
     isGoalsTaskDataLoading:
       input.activeTab === "goals" &&
       !shouldUseWorkspaceSnapshot &&
-      (!input.loading.allTasksReady || !input.loading.imageCollectionsReady),
-    isTimelineTriageReady:
-      shouldUseWorkspaceSnapshot ||
-      (input.loading.allTasksReady && input.loading.imageCollectionsReady),
+      !input.loading.allTasksReady,
+    isTimelineTriageReady: shouldUseWorkspaceSnapshot || !input.loading.timeline,
     isBootShellLoading:
       shouldRenderOptimisticShell && !shouldUseWorkspaceSnapshot && !input.sessionReady,
-    kairoTasks: input.allWorkspaceTasks,
+    kairoTasks: input.inboxTasks,
   };
 }
 

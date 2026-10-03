@@ -3,6 +3,11 @@ import { httpAction } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { authComponent, createAuth } from "./auth";
+import {
+  deriveConvexCloudUrl,
+  OWNER_TOKEN_TTL_SECONDS,
+  splitOwnerTokenIdentifier,
+} from "./ownerConvexToken";
 import { getAllowedWebOrigins } from "./origins";
 import {
   automationBootstrapExchangeSchema,
@@ -306,6 +311,58 @@ http.route({
       label: auth.label,
       scopes: auth.scopes,
       ownerTokenIdentifier: auth.ownerTokenIdentifier,
+    });
+  }),
+});
+
+// POST /automation/convex-token - Mint a short-lived Convex websocket token for
+// this credential's owner, so `pravah watch` can open a real Convex socket.
+// The automation bearer is never sent over the socket; it is only exchanged here.
+http.route({
+  path: "/automation/convex-token",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const authCheck = await requireTaskReadAuth(ctx, request);
+    if (authCheck.response) return authCheck.response;
+    const { auth } = authCheck;
+
+    const convexSiteUrl = process.env.CONVEX_SITE_URL?.trim();
+    if (!convexSiteUrl) {
+      return jsonResponse(
+        { error: "Server configuration error: CONVEX_SITE_URL is required" },
+        500
+      );
+    }
+
+    const owner = splitOwnerTokenIdentifier(auth.ownerTokenIdentifier);
+    if (!owner) {
+      return jsonResponse(
+        { error: "Stored ownerTokenIdentifier is not in `${issuer}|${subject}` form" },
+        409
+      );
+    }
+    if (owner.issuer !== convexSiteUrl) {
+      return jsonResponse(
+        {
+          error:
+            "Stored ownerTokenIdentifier was issued by a different Convex site URL",
+          expectedIssuer: convexSiteUrl,
+        },
+        409
+      );
+    }
+
+    const minted = await createAuth(ctx).api.mintOwnerConvexToken({
+      body: { subject: owner.subject, ttlSeconds: OWNER_TOKEN_TTL_SECONDS },
+      headers: new Headers(),
+    });
+
+    return jsonResponse({
+      token: minted.token,
+      expiresAt: minted.expiresAt,
+      convexUrl: deriveConvexCloudUrl(convexSiteUrl),
+      siteUrl: convexSiteUrl,
+      label: auth.label,
     });
   }),
 });

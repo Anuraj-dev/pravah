@@ -84,7 +84,7 @@ export function Modal({
           variants={overlayVariants}
           className={cn(
             "fixed inset-0 z-50 flex",
-            "bg-black/55 backdrop-blur-[2px]",
+            "bg-[var(--color-bg-overlay)]",
             position === "center" ? "items-center justify-center" : "items-start justify-center pt-24"
           )}
           onClick={handleBackdropClick}
@@ -105,23 +105,21 @@ export function Modal({
               // duplicates.
               willChange: browserOwnsEnter ? undefined : "transform, opacity",
               viewTransitionName,
-              // Timeline panel chrome: vertical gradient, accent-tinted
-              // border, layered shadow with an accent glow. Inline because
-              // oklch() doesn't compose cleanly into Tailwind utilities.
-              background: "linear-gradient(180deg, #111115 0%, #0c0c0f 100%)",
-              border: "1px solid oklch(0.78 0.14 260 / 0.18)",
-              boxShadow:
-                "0 32px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.03), 0 0 70px oklch(0.78 0.14 260 / 0.14)",
+              // Fresh Sheet floating panel: solid warm surface, hairline
+              // border, earned elevation only.
+              background: "var(--color-bg-floating)",
+              border: "1px solid var(--color-border-default)",
+              boxShadow: "0 32px 80px rgba(39, 30, 22, 0.22), 0 0 0 1px var(--color-border-subtle)",
             } as React.CSSProperties}
             className={cn(
-              "rounded-[8px]",
+              "rounded-[16px]",
               "w-full max-w-md p-5 mx-4 md:mx-0",
               className
             )}
           >
             {title && (
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-[13px] font-medium text-zinc-100 tracking-[0.01em]">
+                <h2 className="text-[13px] font-medium text-ink tracking-[0.01em]">
                   {title}
                 </h2>
                 <button
@@ -129,8 +127,8 @@ export function Modal({
                   aria-label="Close"
                   className={cn(
                     "p-1 rounded-[4px]",
-                    "text-zinc-500 hover:text-zinc-100",
-                    "hover:bg-white/[0.05]"
+                    "text-ink-mute hover:text-ink",
+                    "hover:bg-fill-soft"
                   )}
                   style={{
                     transition:

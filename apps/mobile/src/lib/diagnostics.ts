@@ -25,7 +25,7 @@ export type DiagnosticEvent = {
 const STORAGE_KEY = "pravah_diagnostics_v1";
 const MAX_EVENTS = 10_000;
 const MAX_BYTES = 20 * 1024 * 1024;
-const MAX_AGE_MS = 36 * 60 * 60 * 1000;
+const MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 const FLUSH_INTERVAL_MS = 5_000;
 const MAX_SESSIONS = 3;
 

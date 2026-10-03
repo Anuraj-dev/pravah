@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import {
   DndContext,
@@ -10,7 +10,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "../lib/data";
 import { api } from "../../convex/_generated/api";
 import type { Task } from "../types";
 import { Timeline } from "./Timeline";
@@ -26,11 +26,13 @@ import { useAppKeyboardShortcuts } from "../hooks/useAppKeyboardShortcuts";
 import { useAppOverlays } from "../hooks/useAppOverlays";
 import { useWebReminders } from "../hooks/useWebReminders";
 import type { AppPage } from "./TopNavbar";
+import type { SettingsCategory } from "./settings/SettingsPage";
 import { useBootstrapUser } from "../hooks/useBootstrapUser";
 import { useToast } from "./useToast";
 import { TopNavbar } from "./TopNavbar";
 import { isWebGoalsLinkingEnabled } from "../lib/featureFlags";
 import { isTaskCompleted } from "../lib/taskState";
+import { getLocalDateString } from "../lib/utils";
 
 const TaskPopup = lazy(() =>
   import("./TaskPopup").then((module) => ({ default: module.TaskPopup }))
@@ -38,36 +40,43 @@ const TaskPopup = lazy(() =>
 const QuickAdd = lazy(() =>
   import("./QuickAdd").then((module) => ({ default: module.QuickAdd }))
 );
-const Settings = lazy(() =>
-  import("./Settings").then((module) => ({ default: module.Settings }))
+const SettingsPage = lazy(() =>
+  import("./settings/SettingsPage").then((module) => ({ default: module.SettingsPage }))
 );
 
 export function AuthenticatedApp() {
   const webGoalsLinkingEnabled = isWebGoalsLinkingEnabled();
   const [activePage, setActivePage] = useState<AppPage>(() => {
     const saved = window.sessionStorage.getItem("pravah_active_page");
-    if (saved === "goals" || saved === "insights") return saved;
+    if (saved === "goals" || saved === "insights" || saved === "settings") return saved;
     return "timeline";
   });
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
   const [kairoActive, setKairoActive] = useState(false);
-  const {
-    selectedTask,
-    showQuickAdd,
-    showSettings,
-    openTaskPopup,
-    closeTaskPopup,
-    openQuickAdd,
-    closeQuickAdd,
-    openSettings,
-    closeSettings,
-  } = useAppOverlays();
+  // Which settings category a deep link (e.g. Kairo's "finish setup" banner)
+  // should land on. Plain header navigation keeps the last seed.
+  const [settingsSeed, setSettingsSeed] = useState<{ category: SettingsCategory; nonce: number }>({
+    category: "kairo",
+    nonce: 0,
+  });
+  const lastWorkspacePageRef = useRef<AppPage>("timeline");
+  const { selectedTask, showQuickAdd, openTaskPopup, closeTaskPopup, openQuickAdd, closeQuickAdd } =
+    useAppOverlays();
   const { isAuthenticated } = useConvexAuth();
   const bootstrapReady = useBootstrapUser(isAuthenticated);
   const { showToast, showError, showSuccess } = useToast();
 
   const boardTasks = useQuery(api.tasks.listBoardTasks, {});
-  const completedTasks = useQuery(api.tasks.listTasks, { status: "completed" });
+  const today = getLocalDateString();
+  const wantsCompletedHistory = activePage === "insights" || activePage === "goals";
+  const completedTasks = useQuery(
+    api.tasks.listTasks,
+    wantsCompletedHistory ? { status: "completed" } : "skip"
+  );
+  const completedToday = useQuery(
+    api.tasks.listTasks,
+    activePage === "timeline" ? { status: "completed", date: today } : "skip"
+  );
   const kairoTasks = useQuery(api.tasks.listTasks, kairoActive ? {} : "skip");
   const goals = useQuery(api.goals.list, webGoalsLinkingEnabled ? {} : "skip");
   const goalLinks = useQuery(api.goals.listLinks, webGoalsLinkingEnabled ? {} : "skip");
@@ -112,6 +121,9 @@ export function AuthenticatedApp() {
 
   const navigate = useCallback(
     (next: AppPage) => {
+      if (next !== "settings" && activePage !== "settings") {
+        lastWorkspacePageRef.current = next;
+      }
       if (next === activePage) return;
       type DocVT = Document & {
         startViewTransition?: (cb: () => void) => unknown;
@@ -128,11 +140,11 @@ export function AuthenticatedApp() {
     [activePage]
   );
 
-  const allTasksForStats = useMemo(
-    () => [...(boardTasks ?? []), ...(completedTasks ?? [])],
-    [boardTasks, completedTasks]
-  );
-  useWebReminders(allTasksForStats);
+  const allTasksForStats = useMemo(() => {
+    const extra = wantsCompletedHistory ? (completedTasks ?? []) : (completedToday ?? []);
+    return [...(boardTasks ?? []), ...extra];
+  }, [boardTasks, completedTasks, completedToday, wantsCompletedHistory]);
+  useWebReminders(boardTasks ?? []);
 
   const goalNameByTaskId = useMemo(() => {
     if (!webGoalsLinkingEnabled || !goals || !goalLinks) return {};
@@ -178,7 +190,10 @@ export function AuthenticatedApp() {
   }, [allTasksForStats, goalLinks, webGoalsLinkingEnabled]);
 
   const handleCreateGoal = useCallback(
-    async (text: string) => {
+    async (
+      text: string,
+      fields?: { description?: string; deadline?: string; priority?: "p1" | "p2" | "p3" }
+    ) => {
       const goalId =
         typeof crypto !== "undefined" && "randomUUID" in crypto
           ? crypto.randomUUID()
@@ -186,6 +201,9 @@ export function AuthenticatedApp() {
       await upsertGoal({
         clientId: goalId,
         text,
+        description: fields?.description,
+        deadline: fields?.deadline,
+        priority: fields?.priority,
         createdAt: Date.now(),
       });
     },
@@ -228,6 +246,17 @@ export function AuthenticatedApp() {
       }
     },
     [moveTask, showError, showSuccess]
+  );
+
+  const handleToggleComplete = useCallback(
+    async (task: Task) => {
+      try {
+        await completeTask({ taskId: task._id });
+      } catch {
+        showError("Could not complete the task");
+      }
+    },
+    [completeTask, showError]
   );
 
   const handleCompleteManyInboxTasks = useCallback(
@@ -280,11 +309,7 @@ export function AuthenticatedApp() {
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
       <GoogleCallback />
       <div style={{ transition: "opacity var(--dur-slow) var(--ease-out-expo)", ...fade }}>
-        <TopNavbar
-          activePage={activePage}
-          onNavigate={navigate}
-          onOpenSettings={openSettings}
-        />
+        <TopNavbar activePage={activePage} onNavigate={navigate} />
       </div>
       <DndContext
         sensors={sensors}
@@ -297,7 +322,14 @@ export function AuthenticatedApp() {
           style={{ transition: "opacity var(--dur-slow) var(--ease-out-expo)", ...fade }}
         >
           <main className="flex-1 overflow-hidden">
-            {activePage === "timeline" ? (
+            {activePage === "settings" ? (
+              <SettingsPage
+                initialCategory={settingsSeed.category}
+                seedNonce={settingsSeed.nonce}
+                tasks={allTasksForStats}
+                onBack={() => navigate(lastWorkspacePageRef.current)}
+              />
+            ) : activePage === "timeline" ? (
               <Timeline
                 tasksByDate={tasksByDate}
                 allTasks={allTasksForStats}
@@ -305,6 +337,7 @@ export function AuthenticatedApp() {
                 onTaskClick={openTaskPopup}
                 onOpenQuickAdd={openQuickAdd}
                 onRescheduleTask={(taskId, targetDate) => void handleInboxSchedule(taskId, targetDate)}
+                onToggleComplete={(task) => void handleToggleComplete(task)}
               />
             ) : activePage === "goals" ? (
               <LongTermGoalsPage
@@ -327,15 +360,17 @@ export function AuthenticatedApp() {
               />
             )}
           </main>
-          <InboxSidebar
-            tasks={inboxTasks}
-            goalNameByTaskId={goalNameByTaskId}
-            onTaskClick={openTaskPopup}
-            onOpenQuickAdd={openQuickAdd}
-            onScheduleTask={(taskId, targetDate) => void handleInboxSchedule(taskId, targetDate)}
-            onCompleteMany={handleCompleteManyInboxTasks}
-            onDeleteMany={handleDeleteManyInboxTasks}
-          />
+          {activePage !== "settings" && (
+            <InboxSidebar
+              tasks={inboxTasks}
+              goalNameByTaskId={goalNameByTaskId}
+              onTaskClick={openTaskPopup}
+              onOpenQuickAdd={openQuickAdd}
+              onScheduleTask={(taskId, targetDate) => void handleInboxSchedule(taskId, targetDate)}
+              onCompleteMany={handleCompleteManyInboxTasks}
+              onDeleteMany={handleDeleteManyInboxTasks}
+            />
+          )}
         </div>
 
         <DragOverlay
@@ -345,17 +380,14 @@ export function AuthenticatedApp() {
             <div
               style={{
                 padding: "8px 12px",
-                background: "rgba(20, 20, 24, 0.92)",
-                backdropFilter: "blur(6px)",
-                WebkitBackdropFilter: "blur(6px)",
-                border: "1px solid oklch(0.78 0.14 260 / 0.45)",
-                borderLeft: "3px solid oklch(0.78 0.14 260)",
+                background: "var(--color-bg-floating)",
+                border: "1px solid var(--color-border-focus)",
                 borderRadius: 5,
                 fontSize: 12,
-                color: "#ededef",
+                color: "var(--color-text-primary)",
                 transform: "rotate(0.6deg) scale(1.03)",
                 boxShadow:
-                  "0 24px 60px rgba(0,0,0,0.55), 0 8px 18px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.04), 0 0 28px oklch(0.78 0.14 260 / 0.28)",
+                  "0 24px 60px rgba(39, 30, 22, 0.22), 0 0 0 1px var(--color-border-subtle)",
                 fontFamily: "var(--font-sans)",
                 whiteSpace: "nowrap",
                 overflow: "hidden",
@@ -373,13 +405,15 @@ export function AuthenticatedApp() {
         onActiveChange={setKairoActive}
         tasks={kairoTasks ?? boardTasks}
         inboxTasks={inboxTasks}
-        onOpenSettings={openSettings}
+        onOpenSettings={(category) => {
+          setSettingsSeed((seed) => ({ category: category ?? "kairo", nonce: seed.nonce + 1 }));
+          navigate("settings");
+        }}
       />
 
       <Suspense fallback={null}>
         {selectedTask && <TaskPopup task={selectedTask} onClose={closeTaskPopup} />}
         {showQuickAdd && <QuickAdd onClose={closeQuickAdd} />}
-        {showSettings && <Settings onClose={closeSettings} tasks={allTasksForStats} />}
       </Suspense>
     </div>
   );

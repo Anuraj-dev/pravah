@@ -1,5 +1,45 @@
 # Changelog
 
+## [1.21.0](https://github.com/Snehit70/pravah/compare/web-v1.20.1...web-v1.21.0) (2026-09-29)
+
+
+### Features
+
+* **cli:** render watch waybar segment as today's next task ([#257](https://github.com/Snehit70/pravah/issues/257)) ([e289477](https://github.com/Snehit70/pravah/commit/e2894775eecf888d0d21dcfcebd5d285412b7e97))
+
+## [1.20.1](https://github.com/Snehit70/pravah/compare/web-v1.20.0...web-v1.20.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* **cli:** migrate legacy site URL for watch connections ([#255](https://github.com/Snehit70/pravah/issues/255)) ([0dac6b6](https://github.com/Snehit70/pravah/commit/0dac6b6cb9c4d65d8915f391106f81eb959a80e7))
+
+## [1.20.0](https://github.com/Snehit70/pravah/compare/web-v1.19.0...web-v1.20.0) (2026-09-29)
+
+
+### Features
+
+* **cli:** add a Convex subscribe mode for desktop widgets ([6f45dbb](https://github.com/Snehit70/pravah/commit/6f45dbb5a789f60f97055afbc50aea3984dcbb26))
+* **cli:** add a Convex subscribe mode for desktop widgets ([992c171](https://github.com/Snehit70/pravah/commit/992c17166d413d5989a805a646c07a26d16e4d0d))
+* keep task images on the phone until they are deleted ([6415e25](https://github.com/Snehit70/pravah/commit/6415e2586e670a380a98ddc3bc001b4feb9be23a))
+* keep task images on the phone until they are deleted ([6a022c2](https://github.com/Snehit70/pravah/commit/6a022c25db94fdb1d759adcd33d141997792013e))
+
+
+### Bug Fixes
+
+* **cli,widget:** address Omarchy host review on watch transport ([cc8e489](https://github.com/Snehit70/pravah/commit/cc8e489a045abd170686417b1a4ed1b19d9fea30))
+* **cli,widget:** surface watch subscription failures instead of heartbeating stale data ([3790be4](https://github.com/Snehit70/pravah/commit/3790be41bbf7b81fdc8206329f47dd7096285d7b))
+* **cli:** keep the published CLI dependency-free and cover the watch loop ([4cb9eff](https://github.com/Snehit70/pravah/commit/4cb9eff72b1ac7d9583fe55b958ce164057b7634))
+* **goals:** stop duplicate goal rows from racing upserts ([f3a101a](https://github.com/Snehit70/pravah/commit/f3a101a75a34ccc9cac2a6b47b4e046640414e19))
+* **goals:** stop duplicate goal rows from racing upserts ([6008d09](https://github.com/Snehit70/pravah/commit/6008d09b509c2b4bf54d04fa8b19c872f32adc7e))
+* keep image collections working for the installed app ([43a6d0a](https://github.com/Snehit70/pravah/commit/43a6d0a0648fa26af74c1e87e54002ad70a55ea8))
+
+
+### Performance Improvements
+
+* subscribe to heavy Convex queries only when a screen needs them ([93afef8](https://github.com/Snehit70/pravah/commit/93afef8398113dfc46469fe3a1bf91ae7cf4134c))
+* subscribe to heavy Convex queries only when a screen needs them ([df494d2](https://github.com/Snehit70/pravah/commit/df494d29d7402022dcc2a69fba6b80fe16940f9e))
+
 ## [1.19.0](https://github.com/Snehit70/pravah/compare/web-v1.18.0...web-v1.19.0) (2026-09-25)
 
 

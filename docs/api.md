@@ -61,6 +61,33 @@ Planned write expansion should keep the existing coarse scopes initially. Task, 
 
 `POST /automation/bootstrap/exchange` accepts a one-time bootstrap token and does not require an existing credential.
 
+### Convex token exchange
+
+`POST /automation/convex-token` requires `tasks:read`. It exchanges the automation
+bearer for a short-lived Convex websocket token for the same owner:
+
+```json
+{
+  "token": "<RS256 JWT>",
+  "expiresAt": 1790000000000,
+  "convexUrl": "https://<deployment>.eu-west-1.convex.cloud",
+  "siteUrl": "https://<deployment>.eu-west-1.convex.site",
+  "label": "Laptop"
+}
+```
+
+The token is signed with the Better Auth JWKS key that `convex/auth.config.ts`
+publishes, so the existing `customJwt` provider accepts it without a second
+provider entry. `sub` is the subject half of the credential's stored
+`ownerTokenIdentifier`; Convex rebuilds `identity.tokenIdentifier` as
+`${iss}|${sub}`, so the subscription resolves to the same owner as every HTTP
+route. The route returns `409` if the stored identifier was issued by a different
+site URL.
+
+The automation secret is never sent over a websocket. Default lifetime is 15
+minutes, and the caller refreshes before expiry. A revoked credential therefore
+keeps working for at most that long.
+
 ## CLI
 
 The CLI command contract is a versioned JSON envelope on stdout. Agents should check `ok` and the process exit code before reading `data`. The `--json` flag remains accepted for compatibility, but command success and failure should stay structured for agent callers.
@@ -144,6 +171,42 @@ pravah tasks list --status timeline --json
 pravah tasks inbox --json
 pravah goals list --json
 ```
+
+### Watch mode
+
+`pravah watch` is the only command that does not return once. It opens a real
+Convex websocket as the credential's owner, subscribes to the board, today's
+completions, goals, and goal links, and rewrites one snapshot file on every
+update. Every other command stays on HTTP.
+
+```bash
+pravah watch                      # maintain the snapshot until interrupted
+pravah watch --path               # print the snapshot path and exit
+pravah watch --print              # print the current snapshot, no network call
+pravah watch --format waybar      # one {text,tooltip,class} JSON line per update
+```
+
+`--format=waybar` is accepted as well as `--format waybar`.
+
+The snapshot lives at `$XDG_RUNTIME_DIR/pravah/snapshot.json`, falling back to
+`$TMPDIR/pravah-$UID/snapshot.json` and then `/tmp/pravah-$UID/snapshot.json`.
+It is written to a temp file and renamed, so a reader watching the path never
+sees a partial write, and the file is mode `0600`. A pid lock beside it keeps
+two daemons from fighting over the same file; a lock left behind by a dead
+process is reclaimed.
+
+Two behaviours are deliberate:
+
+- **Watch is subscribe-only.** It never falls back to HTTP polling. A widget on
+  watch transport that loses its daemon shows a stale snapshot and says so,
+  rather than silently reverting to polling and hiding the failure.
+- **"Today" bounds are re-subscribed at local midnight.** A subscribed query's
+  arguments are fixed for its lifetime, so a day-bounded query would otherwise
+  keep serving yesterday's completions.
+
+Because the subscription only carries today's completions, `completedTasks` on a
+snapshot goal counts completions inside the subscribed day and understates
+long-running goals.
 
 Inspect one task with goal context:
 

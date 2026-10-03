@@ -2,8 +2,9 @@
 /**
  * Kairo component tests
  *
- * Strategy: mock all external dependencies (bottom-sheet, convex, fetch, kairoConfig)
- * and test the message flow, deferred prompts, API calls, and task extraction.
+ * Strategy: mock all external dependencies (react-native, convex, fetch,
+ * kairoConfig) and test the message flow, deferred prompts, API calls, and
+ * task extraction.
  */
 
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -49,7 +50,27 @@ vi.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
+vi.mock("../assets/icons/settings-kairo.svg", () => ({
+  default: () => React.createElement("svg", { "data-testid": "kairo-mark-icon" }),
+}));
+
+// The page gates its transition on this, which would otherwise drag in
+// useUserPreferences and the whole preference store for no benefit here.
+vi.mock("../hooks/useReducedMotion", () => ({ useReducedMotion: () => false }));
+
 // ─── react-native mock ────────────────────────────────────────────────────────
+// Hardware-back registry. `pressHardwareBack` mirrors RN's real dispatch
+// order — most recently registered handler first — so tests observe which
+// handler actually wins when a page and its parent both listen.
+const backSubscribers: Array<() => boolean> = [];
+
+const pressHardwareBack = () => {
+  for (let i = backSubscribers.length - 1; i >= 0; i -= 1) {
+    if (backSubscribers[i]()) return true;
+  }
+  return false;
+};
+
 vi.mock("react-native", () => {
   type AnyProps = Record<string, unknown> & { children?: React.ReactNode };
   const View = ({ children, ...rest }: AnyProps) => {
@@ -111,6 +132,54 @@ vi.mock("react-native", () => {
     }
   );
   const ActivityIndicator = () => React.createElement("div", { "data-testid": "activity-indicator" });
+  const ScrollView = ({ children }: { children?: React.ReactNode }) =>
+    React.createElement("div", { "data-testid": "scroll-view" }, children);
+  // Kairo is a full-screen Modal page, so the mock has to honour `visible` —
+  // a Modal that always rendered children couldn't assert the closed state.
+  const Modal = ({
+    children,
+    visible,
+  }: {
+    children?: React.ReactNode;
+    visible?: boolean;
+  }) =>
+    visible
+      ? React.createElement("div", { "data-testid": "kairo-modal" }, children)
+      : null;
+  const TextInput = ({
+    value,
+    onChangeText,
+    onSubmitEditing,
+    placeholder,
+  }: {
+    value?: string;
+    onChangeText?: (v: string) => void;
+    onSubmitEditing?: () => void;
+    placeholder?: string;
+    [key: string]: unknown;
+  }) =>
+    React.createElement("input", {
+      value: value ?? "",
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) => onChangeText?.(e.target.value),
+      onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter") onSubmitEditing?.();
+      },
+      placeholder,
+      "data-testid": "kairo-input",
+    });
+  // BackHandler stands in for the real listener registry so a test can fire a
+  // hardware back press and observe which handler wins.
+  const BackHandler = {
+    addEventListener: (_event: string, handler: () => boolean) => {
+      backSubscribers.push(handler);
+      return {
+        remove: () => {
+          const index = backSubscribers.indexOf(handler);
+          if (index >= 0) backSubscribers.splice(index, 1);
+        },
+      };
+    },
+  };
   const Keyboard = {
     dismiss: vi.fn(),
     addListener: vi.fn(() => ({ remove: vi.fn() })),
@@ -124,107 +193,35 @@ vi.mock("react-native", () => {
     get: vi.fn(),
     getEnforcing: vi.fn(),
   };
+  // Kairo gates its page transition on useReducedMotion.
+  const AccessibilityInfo = {
+    isReduceMotionEnabled: vi.fn(async () => false),
+    addEventListener: vi.fn(() => ({ remove: vi.fn() })),
+  };
   return {
     View,
     Text,
     Pressable,
     FlatList,
     ActivityIndicator,
+    ScrollView,
+    Modal,
+    TextInput,
+    BackHandler,
     Keyboard,
     Platform,
     TurboModuleRegistry,
+    AccessibilityInfo,
     StyleSheet: { create: <T,>(s: T) => s, hairlineWidth: 1 },
   };
 });
 
-// ─── @gorhom/bottom-sheet mock ────────────────────────────────────────────────
-const mockExpand = vi.fn();
-const mockClose = vi.fn();
-
-vi.mock("@gorhom/bottom-sheet", () => {
-  const BottomSheet = React.forwardRef(
-    (
-      {
-        children,
-        onChange,
-      }: {
-        children?: React.ReactNode;
-        onChange?: (index: number) => void;
-        [key: string]: unknown;
-      },
-      ref: React.Ref<{ expand: () => void; close: () => void }>
-    ) => {
-      React.useImperativeHandle(ref, () => ({
-        expand: () => {
-          mockExpand();
-          onChange?.(0);
-        },
-        close: () => {
-          mockClose();
-          onChange?.(-1);
-        },
-      }));
-      return React.createElement("div", { "data-testid": "bottom-sheet" }, children);
-    }
-  );
-  return {
-    default: BottomSheet,
-    BottomSheetBackdrop: ({ children }: { children?: React.ReactNode; [key: string]: unknown }) =>
-      React.createElement("div", { "data-testid": "backdrop" }, children),
-    BottomSheetTextInput: ({
-      value,
-      onChangeText,
-      onSubmitEditing,
-      placeholder,
-    }: {
-      value?: string;
-      onChangeText?: (v: string) => void;
-      onSubmitEditing?: () => void;
-      placeholder?: string;
-      [key: string]: unknown;
-    }) =>
-      React.createElement("input", {
-        value: value ?? "",
-        onChange: (e: React.ChangeEvent<HTMLInputElement>) => onChangeText?.(e.target.value),
-        onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
-          if (e.key === "Enter") onSubmitEditing?.();
-        },
-        placeholder,
-        "data-testid": "kairo-input",
-      }),
-    BottomSheetScrollView: ({ children }: { children?: React.ReactNode; [key: string]: unknown }) =>
-      React.createElement("div", { "data-testid": "bottom-sheet-scroll-view" }, children),
-    BottomSheetFlatList: ({
-      data,
-      renderItem,
-      keyExtractor,
-      ListFooterComponent,
-      ListEmptyComponent,
-    }: {
-      data?: unknown[];
-      renderItem?: (info: { item: unknown; index: number }) => React.ReactNode;
-      keyExtractor?: (item: unknown, index: number) => string;
-      ListFooterComponent?: React.ReactNode;
-      ListEmptyComponent?: React.ReactNode;
-      [key: string]: unknown;
-    }) => {
-      const items = data ?? [];
-      return React.createElement(
-        "div",
-        { "data-testid": "bottom-sheet-flat-list" },
-        items.length === 0 && ListEmptyComponent ? ListEmptyComponent : null,
-        ...items.map((item, index) =>
-          React.createElement(
-            "div",
-            { key: keyExtractor ? keyExtractor(item, index) : index },
-            renderItem ? renderItem({ item, index }) : null
-          )
-        ),
-        ListFooterComponent ?? null
-      );
-    },
-  };
-});
+// ─── react-native-keyboard-controller mock ────────────────────────────────
+// The page lifts its composer with this, so the mock is a plain passthrough.
+vi.mock("react-native-keyboard-controller", () => ({
+  KeyboardAvoidingView: ({ children }: { children?: React.ReactNode; [key: string]: unknown }) =>
+    React.createElement("div", { "data-testid": "keyboard-avoiding-view" }, children),
+}));
 
 // ─── react-native-reanimated mock ─────────────────────────────────────────────
 vi.mock("react-native-reanimated", () => ({
@@ -308,7 +305,7 @@ vi.mock("../hooks/useConfirm", () => ({
 }));
 
 // Import component after all mocks are set up.
-import { Kairo, type KairoSheetRef } from "../components/Kairo";
+import { Kairo } from "../components/Kairo";
 import type { KairoTaskInput } from "../lib/kairoApi";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -317,6 +314,8 @@ const sampleTasks: KairoTaskInput[] = [
   { _id: "task1", title: "Task 1" },
   { _id: "task2", title: "Task 2", deadline: "2026-05-05" },
 ];
+
+function noop() {}
 
 function useConfiguredKairo() {
   mockGetKairoConfig.mockResolvedValue({
@@ -341,17 +340,64 @@ function useUnconfiguredKairo() {
 // ─── tests ────────────────────────────────────────────────────────────────────
 
 describe("Kairo", () => {
-  let ref: { current: KairoSheetRef | null };
-  const openKairo = () => {
+  // Kairo is a controlled page, so the tests drive visibility through props the
+  // same way the app does: render closed, flip `visible` to true.
+  const renderKairo = (
+    props: Partial<Parameters<typeof Kairo>[0]> & { visible?: boolean } = {}
+  ) => {
+    const { visible = false, ...rest } = props;
+    const view = render(
+      <Kairo
+        tasks={sampleTasks}
+        inboxTasks={[sampleTasks[0]]}
+        isAllTasksReady={true}
+        visible={visible}
+        onClose={noop}
+        {...rest}
+      />
+    );
+    return {
+      ...view,
+      setVisible: (next: boolean, nextProps = {}) =>
+        view.rerender(
+          <Kairo
+            tasks={sampleTasks}
+            inboxTasks={[sampleTasks[0]]}
+            isAllTasksReady={true}
+            visible={next}
+            onClose={noop}
+            {...rest}
+            {...nextProps}
+          />
+        ),
+    };
+  };
+
+  const openKairo = (view: { setVisible: (v: boolean, p?: object) => void }) =>
     act(() => {
-      ref.current?.open();
+      view.setVisible(true);
     });
+
+  // A fresh chat opens empty, so there's no greeting text to await. The real
+  // readiness gate for every send path is the chat hook hydrating `activeChat`
+  // — the Send button stays disabled until it does. So type first, then wait
+  // for Send to enable; that is the same precondition the user hits.
+  //
+  // Asserted via the raw `disabled` property rather than `toBeEnabled()`:
+  // jest-dom is not registered in this suite, so its matchers don't exist.
+  const compose = async (text: string) => {
+    fireEvent.change(await screen.findByTestId("kairo-input"), {
+      target: { value: text },
+    });
+    const send = screen.getByRole("button", { name: /send message/i }) as HTMLButtonElement;
+    await waitFor(() => expect(send.disabled).toBe(false));
+    return send;
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
     asyncStorageBacking.clear();
-    ref = { current: null };
+    backSubscribers.length = 0;
     global.fetch = vi.fn();
   });
 
@@ -359,82 +405,79 @@ describe("Kairo", () => {
     vi.clearAllMocks();
   });
 
-  it("stays unmounted until opened, then renders the greeting", async () => {
+  it("renders nothing while closed, then the page once opened", async () => {
     useConfiguredKairo();
 
-    render(
-      <Kairo
-        ref={ref}
-        tasks={sampleTasks}
-        inboxTasks={[sampleTasks[0]]}
-        isAllTasksReady={true}
-      />
-    );
+    const view = renderKairo();
 
-    expect(screen.queryByTestId("bottom-sheet")).toBeNull();
-    openKairo();
+    expect(screen.queryByTestId("kairo-modal")).toBeNull();
+    expect(screen.queryByTestId("kairo-input")).toBeNull();
 
-    // Hook hydrates asynchronously; wait for the seeded greeting to land.
-    await screen.findByText(/Hi, I'm Kairo/i);
+    openKairo(view);
+
+    // Hook hydrates asynchronously; wait for the composer to land.
+    expect(await screen.findByTestId("kairo-input")).toBeTruthy();
+    expect(screen.getByTestId("kairo-modal")).toBeTruthy();
   });
 
-  it("calls onActiveChange when sheet opens and closes", async () => {
+  it("asks the parent to close when the back control is pressed", async () => {
     useConfiguredKairo();
-    const onActiveChange = vi.fn();
+    const onClose = vi.fn();
 
-    render(
-      <Kairo
-        ref={ref}
-        tasks={sampleTasks}
-        inboxTasks={[sampleTasks[0]]}
-        isAllTasksReady={true}
-        onActiveChange={onActiveChange}
-      />
-    );
+    renderKairo({ visible: true, onClose });
+    await screen.findByTestId("kairo-input");
 
-    // Open the sheet
+    fireEvent.click(screen.getByRole("button", { name: /close kairo/i }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("unwinds history before closing on hardware back", async () => {
+    useConfiguredKairo();
+    const onClose = vi.fn();
+
+    renderKairo({ visible: true, onClose });
+    await screen.findByTestId("kairo-input");
+
+    // Open the history page.
+    fireEvent.click(screen.getByRole("button", { name: /show chat list/i }));
+    expect(screen.getByText("Chats")).toBeTruthy();
+
+    // First back press unwinds history to the chat, and must not close.
+    let handled = false;
     act(() => {
-      ref.current?.open();
+      handled = pressHardwareBack();
     });
+    expect(handled).toBe(true);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.queryByText("Chats")).toBeNull();
+    expect(screen.getByTestId("kairo-input")).toBeTruthy();
 
-    await waitFor(() => expect(onActiveChange).toHaveBeenCalledWith(true));
-
-    // Close the sheet
+    // Second back press dismisses the page.
     act(() => {
-      ref.current?.close();
+      handled = pressHardwareBack();
     });
-
-    await waitFor(() => expect(onActiveChange).toHaveBeenCalledWith(false));
+    expect(handled).toBe(true);
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it("defers message when isAllTasksReady is false", async () => {
     useConfiguredKairo();
 
-    render(
-      <Kairo
-        ref={ref}
-        tasks={[]}
-        inboxTasks={[]}
-        isAllTasksReady={false}
-      />
-    );
+    const view = renderKairo({
+      tasks: [],
+      inboxTasks: [],
+      isAllTasksReady: false,
+    });
 
-    openKairo();
-    await screen.findByText(/Hi, I'm Kairo/i);
+    openKairo(view);
+    const sendBtn = await compose("Plan my week");
 
-    const input = screen.getByTestId("kairo-input") as HTMLInputElement;
-    const sendBtn = screen.getByRole("button", { name: /send message/i });
-
-    // Type a message
-    fireEvent.change(input, { target: { value: "Plan my week" } });
-    
-    // Send the message
     await act(async () => {
       fireEvent.click(sendBtn);
     });
 
-    // Should show the deferred message (preview bubble; the header title
-    // does not auto-derive while the prompt is still pending).
+    // Should show the deferred message as a preview bubble.
     expect(screen.getByText("Plan my week")).toBeTruthy();
     expect(screen.getByText(/Loading your workspace/i)).toBeTruthy();
 
@@ -450,44 +493,33 @@ describe("Kairo", () => {
       json: async () => ({ content: [{ type: "text", text: "Here's your plan" }] }),
     });
 
-    const { rerender } = render(
-      <Kairo
-        ref={ref}
-        tasks={[]}
-        inboxTasks={[]}
-        isAllTasksReady={false}
-      />
-    );
+    const view = renderKairo({
+      tasks: [],
+      inboxTasks: [],
+      isAllTasksReady: false,
+    });
 
-    openKairo();
-    await screen.findByText(/Hi, I'm Kairo/i);
+    openKairo(view);
+    const sendBtn = await compose("Plan my week");
 
-    const input = screen.getByTestId("kairo-input") as HTMLInputElement;
-    const sendBtn = screen.getByRole("button", { name: /send message/i });
-
-    // Send message while not ready
-    fireEvent.change(input, { target: { value: "Plan my week" } });
     await act(async () => {
       fireEvent.click(sendBtn);
     });
 
     expect(screen.getByText(/Loading your workspace/i)).toBeTruthy();
 
-    // Now make workspace ready
-    rerender(
-      <Kairo
-        ref={ref}
-        tasks={sampleTasks}
-        inboxTasks={[sampleTasks[0]]}
-        isAllTasksReady={true}
-      />
-    );
+    // Now the full-corpus query resolves and the workspace populates.
+    view.setVisible(true, {
+      tasks: sampleTasks,
+      inboxTasks: [sampleTasks[0]],
+      isAllTasksReady: true,
+    });
 
     // Should replay the deferred message
     await waitFor(() => expect(global.fetch).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByText("Here's your plan")).toBeTruthy());
 
-    // After replay: user bubble + auto-derived header title both show the text.
+    // After replay: the user bubble shows the text and the loading bubble is gone.
     expect(screen.getAllByText("Plan my week").length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText(/Loading your workspace/i)).toBeNull();
   });
@@ -500,28 +532,16 @@ describe("Kairo", () => {
       json: async () => ({ content: [{ type: "text", text: "Got it!" }] }),
     });
 
-    render(
-      <Kairo
-        ref={ref}
-        tasks={sampleTasks}
-        inboxTasks={[sampleTasks[0]]}
-        isAllTasksReady={true}
-      />
-    );
+    const view = renderKairo();
 
-    openKairo();
-    await screen.findByText(/Hi, I'm Kairo/i);
-
-    const input = screen.getByTestId("kairo-input") as HTMLInputElement;
-    const sendBtn = screen.getByRole("button", { name: /send message/i });
-
-    fireEvent.change(input, { target: { value: "What's overdue?" } });
+    openKairo(view);
+    const sendBtn = await compose("What's overdue?");
 
     await act(async () => {
       fireEvent.click(sendBtn);
     });
 
-    // Should show user message (bubble + auto-derived header title).
+    // Should show the user message bubble.
     expect(screen.getAllByText("What's overdue?").length).toBeGreaterThanOrEqual(1);
 
     // Should call fetch
@@ -534,22 +554,10 @@ describe("Kairo", () => {
   it("shows config prompt when Kairo is unconfigured", async () => {
     useUnconfiguredKairo();
 
-    render(
-      <Kairo
-        ref={ref}
-        tasks={sampleTasks}
-        inboxTasks={[sampleTasks[0]]}
-        isAllTasksReady={true}
-      />
-    );
+    const view = renderKairo();
 
-    openKairo();
-    await screen.findByText(/Hi, I'm Kairo/i);
-
-    const input = screen.getByTestId("kairo-input") as HTMLInputElement;
-    const sendBtn = screen.getByRole("button", { name: /send message/i });
-
-    fireEvent.change(input, { target: { value: "Help me" } });
+    openKairo(view);
+    const sendBtn = await compose("Help me");
     
     await act(async () => {
       fireEvent.click(sendBtn);
@@ -594,22 +602,10 @@ describe("Kairo", () => {
         json: async () => ({ content: [{ type: "text", text: "I've added these tasks" }] }),
       });
 
-    render(
-      <Kairo
-        ref={ref}
-        tasks={sampleTasks}
-        inboxTasks={[sampleTasks[0]]}
-        isAllTasksReady={true}
-      />
-    );
+    const view = renderKairo();
 
-    openKairo();
-    await screen.findByText(/Hi, I'm Kairo/i);
-
-    const input = screen.getByTestId("kairo-input") as HTMLInputElement;
-    const sendBtn = screen.getByRole("button", { name: /send message/i });
-
-    fireEvent.change(input, { target: { value: "Add some tasks" } });
+    openKairo(view);
+    const sendBtn = await compose("Add some tasks");
     
     await act(async () => {
       fireEvent.click(sendBtn);
@@ -654,20 +650,12 @@ describe("Kairo", () => {
         json: async () => ({ content: [{ type: "text", text: "I left it unchanged." }] }),
       });
 
-    render(
-      <Kairo
-        ref={ref}
-        tasks={sampleTasks}
-        inboxTasks={[sampleTasks[0]]}
-        isAllTasksReady={true}
-      />
-    );
+    const view = renderKairo();
 
-    openKairo();
-    await screen.findByText(/Hi, I'm Kairo/i);
-    fireEvent.change(screen.getByTestId("kairo-input"), { target: { value: "Add a task" } });
+    openKairo(view);
+    const sendBtn = await compose("Add a task");
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /send message/i }));
+      fireEvent.click(sendBtn);
     });
 
     await waitFor(() => expect(screen.getByText("I left it unchanged.")).toBeTruthy());
@@ -684,22 +672,10 @@ describe("Kairo", () => {
       json: async () => ({ error: { message: "Invalid API key" } }),
     });
 
-    render(
-      <Kairo
-        ref={ref}
-        tasks={sampleTasks}
-        inboxTasks={[sampleTasks[0]]}
-        isAllTasksReady={true}
-      />
-    );
+    const view = renderKairo();
 
-    openKairo();
-    await screen.findByText(/Hi, I'm Kairo/i);
-
-    const input = screen.getByTestId("kairo-input") as HTMLInputElement;
-    const sendBtn = screen.getByRole("button", { name: /send message/i });
-
-    fireEvent.change(input, { target: { value: "Help" } });
+    openKairo(view);
+    const sendBtn = await compose("Help");
 
     await act(async () => {
       fireEvent.click(sendBtn);
@@ -718,22 +694,10 @@ describe("Kairo", () => {
       new Error("Network error")
     );
 
-    render(
-      <Kairo
-        ref={ref}
-        tasks={sampleTasks}
-        inboxTasks={[sampleTasks[0]]}
-        isAllTasksReady={true}
-      />
-    );
+    const view = renderKairo();
 
-    openKairo();
-    await screen.findByText(/Hi, I'm Kairo/i);
-
-    const input = screen.getByTestId("kairo-input") as HTMLInputElement;
-    const sendBtn = screen.getByRole("button", { name: /send message/i });
-
-    fireEvent.change(input, { target: { value: "Help" } });
+    openKairo(view);
+    const sendBtn = await compose("Help");
     
     await act(async () => {
       fireEvent.click(sendBtn);

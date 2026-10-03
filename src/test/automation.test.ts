@@ -61,7 +61,7 @@ const resolveAutomationCredentialHandler = (
       label: string;
       scopes: string[];
       ownerTokenIdentifier: string;
-      needsUsageWrite: boolean;
+      lastUsedAt?: number;
     } | null
   >
 )._handler;
@@ -381,8 +381,8 @@ describe("automation credential handlers", () => {
       label: "Laptop",
       ownerTokenIdentifier: "user-1",
       scopes: ["tasks:read"],
-      needsUsageWrite: false,
     });
+    expect(result).not.toHaveProperty("needsUsageWrite");
     expect(db.patch).not.toHaveBeenCalled();
   });
 
@@ -405,6 +405,7 @@ describe("automation credential handlers", () => {
       credentialSecret: "pravah_cred_demo",
     });
 
-    expect(result?.needsUsageWrite).toBe(true);
+    expect(result?.lastUsedAt).toBeUndefined();
+    expect(result).not.toHaveProperty("needsUsageWrite");
   });
 });

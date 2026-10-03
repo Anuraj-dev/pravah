@@ -384,6 +384,79 @@ export async function removeTaskImageSource(sourceKey: string): Promise<void> {
   taskImageSourceFile(sourceKey)?.delete();
 }
 
+const TASK_IMAGE_LIBRARY_DIRECTORY = "pravah-task-image-library";
+const LIBRARY_ID = /^[A-Za-z0-9_-]{1,128}$/;
+const LIBRARY_EXTENSIONS = ["jpg", "png", "webp"] as const;
+
+function libraryDirectory() {
+  const directory = new Directory(Paths.document, TASK_IMAGE_LIBRARY_DIRECTORY);
+  directory.create({ idempotent: true, intermediates: true });
+  return directory;
+}
+
+function extensionForUri(uri: string): (typeof LIBRARY_EXTENSIONS)[number] {
+  const path = uri.toLowerCase().split("?")[0];
+  if (path.endsWith(".png") || path.includes("f_png")) return "png";
+  if (path.endsWith(".webp") || path.includes("f_webp")) return "webp";
+  return "jpg";
+}
+
+function libraryFiles(taskImageId: string) {
+  if (!LIBRARY_ID.test(taskImageId)) return [];
+  const directory = new Directory(Paths.document, TASK_IMAGE_LIBRARY_DIRECTORY);
+  return LIBRARY_EXTENSIONS.map((extension) => new File(directory, `${taskImageId}.${extension}`));
+}
+
+export async function readLocalTaskImage(taskImageId: string): Promise<string | null> {
+  for (const file of libraryFiles(taskImageId)) {
+    if (file.exists) return file.uri;
+  }
+  return null;
+}
+
+export async function writeLocalTaskImage(taskImageId: string, sourceUri: string): Promise<string | null> {
+  if (!LIBRARY_ID.test(taskImageId)) return null;
+  const source = new File(sourceUri);
+  if (!source.exists) return null;
+  const extension = extensionForUri(sourceUri);
+  const directory = libraryDirectory();
+  for (const file of libraryFiles(taskImageId)) {
+    if (file.exists && file.name !== `${taskImageId}.${extension}`) file.delete();
+  }
+  const destination = new File(directory, `${taskImageId}.${extension}`);
+  await source.copy(destination, { overwrite: true });
+  return destination.uri;
+}
+
+export async function downloadLocalTaskImage(taskImageId: string, url: string): Promise<string | null> {
+  if (!LIBRARY_ID.test(taskImageId) || !url.startsWith("https://")) return null;
+  const extension = extensionForUri(url);
+  const directory = libraryDirectory();
+  const destination = new File(directory, `${taskImageId}.${extension}`);
+  try {
+    const file = await File.downloadFileAsync(url, destination, { idempotent: true });
+    for (const sibling of libraryFiles(taskImageId)) {
+      if (sibling.uri !== file.uri && sibling.exists) sibling.delete();
+    }
+    return file.uri;
+  } catch {
+    if (destination.exists) destination.delete();
+    return null;
+  }
+}
+
+export async function deleteLocalTaskImage(taskImageId: string): Promise<void> {
+  for (const file of libraryFiles(taskImageId)) {
+    if (file.exists) file.delete();
+  }
+}
+
+export function deleteLocalTaskImageLibrary(): void {
+  const directory = new Directory(Paths.document, TASK_IMAGE_LIBRARY_DIRECTORY);
+  if (!directory.exists) return;
+  directory.delete();
+}
+
 export async function uploadPreparedTaskImage(
   uri: string,
   grant: TaskImageUploadGrant,

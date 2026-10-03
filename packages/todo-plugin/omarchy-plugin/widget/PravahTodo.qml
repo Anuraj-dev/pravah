@@ -16,6 +16,9 @@ BarWidget {
   // ----------------------------------------------------------- settings ---
   readonly property int pollSec: Math.max(10, Number(setting("pollIntervalSec", 300)) || 300)
   readonly property bool showCompleted: String(setting("showCompleted", "On")).toLowerCase() !== "off"
+  // "watch" reads the snapshot `pravah watch` maintains instead of polling the
+  // HTTP API. Writes stay on HTTP either way.
+  readonly property string transport: String(setting("transport", "cli")) === "watch" ? "watch" : "cli"
 
   // -------------------------------------------------------------- state ---
   property bool panelOpen: false
@@ -40,7 +43,7 @@ BarWidget {
     confirmAction = null
   }
 
-  PravahData { id: store }
+  PravahData { id: store; transport: root.transport }
 
   // ---------------------------------------------------------------- ipc ---
   IpcHandler {
@@ -288,7 +291,12 @@ BarWidget {
     open: root.panelOpen
     focusTarget: quickInput
     contentWidth: fittedContentWidth(470)
-    contentHeight: fittedContentHeight(contentCol.implicitHeight + Style.space(16), Style.space(640))
+    // An overlay can be taller than the list beneath it, especially when empty.
+    contentHeight: fittedContentHeight(Math.max(
+      contentCol.implicitHeight + Style.space(16),
+      editor.visible ? editor.implicitHeight : 0,
+      goalEditor.visible ? goalEditor.implicitHeight : 0
+    ), Style.space(640))
     function close() { root.panelOpen = false }
 
     Column {
@@ -570,6 +578,8 @@ BarWidget {
 
       onSaveRequested: function(fields) {
         goalEditor.close()
+        // goalEditArgv is just the base argv when nothing changed; submitting
+        // that would be a no-op write, so skip it like the task editor does.
         if (editingGoal) {
           var argv = store.goalEditArgv(editingGoal, fields)
           if (argv.length > 5) store.submitWrite(argv, "Saving goal…")
@@ -942,7 +952,10 @@ BarWidget {
 
   Timer {
     interval: root.pollSec * 1000
-    running: true
+    // In watch mode the snapshot FileView pushes updates, so there is nothing
+    // to poll for. A still-running timer would only cost a wasted tick that
+    // `refresh` then drops.
+    running: root.transport !== "watch"
     repeat: true
     onTriggered: store.refresh()
   }

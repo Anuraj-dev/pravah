@@ -25,20 +25,20 @@ export class AppErrorBoundary extends Component<
   render() {
     if (this.state.error) {
       return (
-        <main className="flex min-h-screen items-center justify-center bg-[#05070d] px-6 text-zinc-100">
-          <section className="w-full max-w-md rounded-lg border border-white/10 bg-white/[0.04] p-6 shadow-2xl">
-            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-zinc-500">
+        <main className="flex min-h-screen items-center justify-center bg-canvas px-6 text-ink">
+          <section className="w-full max-w-md rounded-lg border border-line bg-fill-soft p-6 shadow-2xl">
+            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-mute">
               Pravah web
             </p>
             <h1 className="mt-3 text-2xl font-semibold tracking-tight">
               Pravah could not load
             </h1>
-            <p className="mt-3 text-sm leading-6 text-zinc-400">
+            <p className="mt-3 text-sm leading-6 text-ink-soft">
               The app hit an unexpected browser error. Reload the page to try again.
             </p>
             <button
               type="button"
-              className="mt-6 rounded-md bg-white px-4 py-2 text-sm font-semibold text-[#090a0f] transition-colors hover:bg-zinc-200"
+              className="mt-6 rounded-md bg-white px-4 py-2 text-sm font-semibold text-[var(--color-text-inverse)] transition-colors hover:bg-paper"
               onClick={() => window.location.reload()}
             >
               Reload Pravah

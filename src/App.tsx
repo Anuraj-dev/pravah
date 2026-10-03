@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
-import { Authenticated, AuthLoading, Unauthenticated } from "convex/react";
+import { Authenticated, AuthLoading, Unauthenticated } from "./lib/data";
 import { LoadingSkeleton } from "./components/LoadingSkeleton";
-import { AuthScreen } from "./components/AuthScreen";
+import { Landing } from "./components/Landing";
 
 const AuthenticatedApp = lazy(() =>
   import("./components/AuthenticatedApp").then((module) => ({
@@ -16,7 +16,7 @@ export function App() {
         <LoadingSkeleton />
       </AuthLoading>
       <Unauthenticated>
-        <AuthScreen />
+        <Landing />
       </Unauthenticated>
       <Authenticated>
         <Suspense fallback={<LoadingSkeleton />}>
