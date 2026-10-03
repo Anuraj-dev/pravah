@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useMutation } from "convex/react";
+import { useMutation } from "../lib/data";
 import { AnimatePresence, motion } from "framer-motion";
 import { api } from "../../convex/_generated/api";
 import { T_BASE, T_FAST, tx } from "../lib/motion";
@@ -38,7 +38,7 @@ function Pill({
         gap: 6,
         padding: "5px 10px",
         background: active ? ACCENT_SOFT : "var(--color-fill-faint)",
-        border: `1px solid ${active ? "rgba(103, 83, 199, 0.55)" : "var(--color-border-subtle)"}`,
+        border: `1px solid ${active ? "rgba(var(--color-accent-primary-rgb), 0.55)" : "var(--color-border-subtle)"}`,
         borderRadius: 5,
         fontSize: 11.5,
         color: active ? ACCENT : "var(--color-text-secondary)",

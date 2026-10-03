@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { LoaderCircle } from "lucide-react";
 import { authClient } from "../lib/auth-client";
+import { enterDemo } from "../demo/demoFlag";
 import { cn } from "../lib/utils";
 
 /* ------------------------------------------------------------------ */
@@ -630,6 +631,20 @@ export function Landing() {
                   ONE GOOGLE SIGN-IN · NO SETUP
                 </span>
               </div>
+              {import.meta.env.DEV && (
+                <div className="mt-5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      enterDemo();
+                      window.location.reload();
+                    }}
+                    className="rounded-[6px] border border-line px-4 py-2 font-mono text-[11px] uppercase tracking-[0.14em] text-ink-mute transition-colors hover:bg-fill-soft hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+                  >
+                    Enter demo workspace (local only)
+                  </button>
+                </div>
+              )}
               {error && (
                 <p className="mt-4 max-w-md rounded-[6px] border border-error/30 bg-error-muted px-3 py-2 text-[13px] text-error">
                   {error}

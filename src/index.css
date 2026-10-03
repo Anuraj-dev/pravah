@@ -50,6 +50,8 @@
   --color-accent-primary-muted: rgba(103, 83, 199, 0.16);
   --color-accent-glow: rgba(103, 83, 199, 0.28);
   --color-accent-dim: rgba(103, 83, 199, 0.07);
+  /* RGB triplet for JS-side rgba() composition (heat cells, focus rings). */
+  --color-accent-primary-rgb: 103, 83, 199;
 
   --color-success: #226b4b;
   --color-success-muted: rgba(34, 107, 75, 0.14);
@@ -129,6 +131,49 @@ body {
   color: var(--color-text-primary);
 }
 
+/* Accent palettes — mirror mobile's accentPalettes (apps/mobile/src/theme/tokens.ts).
+   The chosen accent is applied as <html data-accent="...">; purple is the default
+   and needs no override block. Values cover both the Tailwind @theme aliases and
+   the :root semantic tokens. */
+[data-accent="copper"] {
+  --color-accent: #9a552f;
+  --color-accent-deep: #814522;
+  --color-accent-primary: #9a552f;
+  --color-accent-primary-hover: #814522;
+  --color-accent-primary-muted: rgba(154, 85, 47, 0.16);
+  --color-accent-glow: rgba(154, 85, 47, 0.27);
+  --color-accent-dim: rgba(154, 85, 47, 0.07);
+  --color-accent-primary-rgb: 154, 85, 47;
+  --color-border-focus: rgba(154, 85, 47, 0.45);
+  --shadow-glow: 0 0 0 2px rgba(154, 85, 47, 0.4);
+}
+
+[data-accent="teal"] {
+  --color-accent: #28716e;
+  --color-accent-deep: #205e5c;
+  --color-accent-primary: #28716e;
+  --color-accent-primary-hover: #205e5c;
+  --color-accent-primary-muted: rgba(40, 113, 110, 0.16);
+  --color-accent-glow: rgba(40, 113, 110, 0.27);
+  --color-accent-dim: rgba(40, 113, 110, 0.07);
+  --color-accent-primary-rgb: 40, 113, 110;
+  --color-border-focus: rgba(40, 113, 110, 0.45);
+  --shadow-glow: 0 0 0 2px rgba(40, 113, 110, 0.4);
+}
+
+[data-accent="rose"] {
+  --color-accent: #98516a;
+  --color-accent-deep: #814258;
+  --color-accent-primary: #98516a;
+  --color-accent-primary-hover: #814258;
+  --color-accent-primary-muted: rgba(152, 81, 106, 0.16);
+  --color-accent-glow: rgba(152, 81, 106, 0.27);
+  --color-accent-dim: rgba(152, 81, 106, 0.07);
+  --color-accent-primary-rgb: 152, 81, 106;
+  --color-border-focus: rgba(152, 81, 106, 0.45);
+  --shadow-glow: 0 0 0 2px rgba(152, 81, 106, 0.4);
+}
+
 body::before {
   content: "";
   position: fixed;
@@ -187,7 +232,7 @@ body::before {
 }
 
 ::selection {
-  background: rgba(103, 83, 199, 0.22);
+  background: rgba(var(--color-accent-primary-rgb), 0.22);
   color: var(--color-text-primary);
 }
 

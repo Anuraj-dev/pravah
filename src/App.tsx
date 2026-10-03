@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Authenticated, AuthLoading, Unauthenticated } from "convex/react";
+import { Authenticated, AuthLoading, Unauthenticated } from "./lib/data";
 import { LoadingSkeleton } from "./components/LoadingSkeleton";
 import { Landing } from "./components/Landing";
 
