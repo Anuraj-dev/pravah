@@ -291,7 +291,12 @@ BarWidget {
     open: root.panelOpen
     focusTarget: quickInput
     contentWidth: fittedContentWidth(470)
-    contentHeight: fittedContentHeight(contentCol.implicitHeight + Style.space(16), Style.space(640))
+    // An overlay can be taller than the list beneath it, especially when empty.
+    contentHeight: fittedContentHeight(Math.max(
+      contentCol.implicitHeight + Style.space(16),
+      editor.visible ? editor.implicitHeight : 0,
+      goalEditor.visible ? goalEditor.implicitHeight : 0
+    ), Style.space(640))
     function close() { root.panelOpen = false }
 
     Column {
