@@ -29,6 +29,9 @@ QtObject {
   id: root
 
   property string cli: "pravah"
+  // Overridden by the bar widget from the `transport` setting. The default here
+  // stays "cli" so a bare PravahData (as used in tests) does not require a
+  // running `pravah watch` daemon.
   property string transport: "cli"
 
   // ------------------------------------------------------------- state ---

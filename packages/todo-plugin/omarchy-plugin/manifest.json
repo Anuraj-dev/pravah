@@ -20,7 +20,7 @@
       "pollIntervalSec": 300,
       "defaultTab": "today",
       "showCompleted": "On",
-      "transport": "cli"
+      "transport": "watch"
     },
     "schema": [
       {
@@ -28,7 +28,7 @@
         "type": "enum",
         "label": "Read transport",
         "options": ["cli", "watch"],
-        "defaultValue": "cli"
+        "defaultValue": "watch"
       },
       {
         "key": "pollIntervalSec",

@@ -34,7 +34,10 @@ fails.
 ## Requirements
 
 - Omarchy Shell
-- `pravah` installed and available on the shell's `PATH` (CLI v2)
+- `pravah` installed and available on the shell's `PATH` (CLI v2). The `watch`
+  transport, which is now the default, is not in a published CLI release yet —
+  build from source with `bun run --cwd packages/cli build` and check
+  `pravah watch --help` works before relying on it.
 - An authenticated Pravah credential with `tasks:read`, and `tasks:write`
   for anything beyond viewing
 
@@ -82,6 +85,37 @@ omarchy-shell shell rescanPlugins
 
 If Omarchy keeps an older widget instance alive after an upgrade, run
 `omarchy restart shell` once.
+
+## Keep the snapshot fresh
+
+The widget defaults to the `watch` transport: `pravah watch` holds a Convex
+websocket and publishes a snapshot file, which the widget reads. That replaces
+the old `tasks list --all` poll, which re-scanned every task and task-image row
+on a timer whether or not anything had changed. Cached query reads are not
+charged database bandwidth, so an idle bar costs almost nothing.
+
+Watch mode needs that daemon running. Without it the widget reports an error
+rather than quietly falling back to HTTP polling, since stale data behind a
+working-looking panel is worse than a visible failure.
+
+Install the bundled user unit:
+
+```bash
+cp omarchy-plugin/pravah-watch.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now pravah-watch.service
+```
+
+Check it:
+
+```bash
+systemctl --user status pravah-watch.service
+```
+
+Set `transport` back to `cli` in the plugin settings to poll over HTTP instead.
+That path needs no daemon, at the cost of the periodic full read.
+
+Writes always go over HTTP in both transports.
 
 ## Controls
 
