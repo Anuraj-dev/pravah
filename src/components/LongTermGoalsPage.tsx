@@ -3,7 +3,7 @@ import { Reorder, motion, useReducedMotion } from "framer-motion";
 import { cn } from "../lib/utils";
 import { isTaskCompleted } from "../lib/taskState";
 import { EASE_OUT_EXPO } from "../lib/motion";
-import { ArrowUpRightIcon, GripHorizontalIcon, PencilIcon, PlusIcon, TrashIcon } from "./ui/icons";
+import { GripHorizontalIcon, PencilIcon, PlusIcon, TrashIcon } from "./ui/icons";
 import { navGoalsIcon } from "./ui/traced-icons";
 import type { Task } from "../types";
 
@@ -20,6 +20,9 @@ const PRIORITY_META = {
 interface GoalItem {
   id: string;
   text: string;
+  description?: string;
+  deadline?: string;
+  priority?: "p1" | "p2" | "p3";
 }
 
 interface GoalReadModel {
@@ -36,12 +39,18 @@ interface GoalProgress {
   done: number;
 }
 
+interface GoalCreateFields {
+  description?: string;
+  deadline?: string;
+  priority?: "p1" | "p2" | "p3";
+}
+
 interface LongTermGoalsPageProps {
   readOnly?: boolean;
   serverBacked?: boolean;
   serverGoals?: GoalReadModel[];
   progressByGoalId?: Record<string, GoalProgress>;
-  onCreateServerGoal?: (text: string) => Promise<void>;
+  onCreateServerGoal?: (text: string, fields?: GoalCreateFields) => Promise<void>;
   onUpdateServerGoal?: (goalId: string, patch: Pick<GoalReadModel, "description" | "deadline" | "priority">) => Promise<void>;
   onDeleteServerGoal?: (goalId: string) => Promise<void>;
   linkedTasksByGoalId?: Record<string, Task[]>;
@@ -66,6 +75,10 @@ export function LongTermGoalsPage({
   onOpenTask,
 }: LongTermGoalsPageProps = {}) {
   const [draft, setDraft] = useState("");
+  const [draftDescription, setDraftDescription] = useState("");
+  const [draftDeadline, setDraftDeadline] = useState("");
+  const [draftPriority, setDraftPriority] = useState<"p1" | "p2" | "p3" | undefined>(undefined);
+  const [composerFocused, setComposerFocused] = useState(false);
   const [serverBusy, setServerBusy] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
@@ -103,16 +116,43 @@ export function LongTermGoalsPage({
     return goals;
   }, [goals, serverBacked, serverGoals]);
 
+  const composerOpen =
+    composerFocused ||
+    draft.trim() !== "" ||
+    draftDescription.trim() !== "" ||
+    draftDeadline !== "" ||
+    draftPriority !== undefined;
+
+  const resetComposer = () => {
+    setDraft("");
+    setDraftDescription("");
+    setDraftDeadline("");
+    setDraftPriority(undefined);
+  };
+
   const addGoal = async () => {
     const text = draft.trim();
     if (!text) return;
+    const description = draftDescription.trim();
+    const fields: GoalCreateFields | undefined =
+      description || draftDeadline || draftPriority
+        ? {
+            description: description || undefined,
+            deadline: draftDeadline || undefined,
+            priority: draftPriority,
+          }
+        : undefined;
     if (serverBacked) {
       if (!onCreateServerGoal) return;
       setServerBusy(true);
       setServerError(null);
       try {
-        await onCreateServerGoal(text);
-        setDraft("");
+        if (fields) {
+          await onCreateServerGoal(text, fields);
+        } else {
+          await onCreateServerGoal(text);
+        }
+        resetComposer();
       } catch {
         setServerError("Could not create goal. Try again.");
       } finally {
@@ -128,9 +168,12 @@ export function LongTermGoalsPage({
             ? crypto.randomUUID()
             : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         text,
+        description: description || undefined,
+        deadline: draftDeadline || undefined,
+        priority: draftPriority,
       },
     ]);
-    setDraft("");
+    resetComposer();
   };
 
   const removeGoal = async (goalId: string) => {
@@ -191,131 +234,200 @@ export function LongTermGoalsPage({
           )}
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_220px]">
-          <section>
-            {!readOnly && (
-              <div className="mb-4 flex items-center gap-2">
+        {/* Composer: title + optional notes/priority/deadline, revealed on focus.
+            Mirrors the mobile AddTaskSheet "New goal" kind. */}
+        {!readOnly && (
+          <div
+            className={cn(
+              "mb-5 rounded-[12px] border bg-[var(--color-bg-elevated)] transition-colors duration-150",
+              composerOpen ? "border-accent/45" : "border-line-subtle hover:border-line"
+            )}
+            onFocus={() => setComposerFocused(true)}
+            onBlur={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                setComposerFocused(false);
+              }
+            }}
+          >
+            <div className="flex items-center gap-2.5 px-2.5 py-2">
+              <span
+                aria-hidden
+                className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[9px] border border-line-subtle bg-[var(--color-bg-surface)] text-ink-mute"
+              >
+                <NavGoalsGlyph size={15} />
+              </span>
+              <input
+                ref={addInputRef}
+                type="text"
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") void addGoal();
+                }}
+                placeholder="What do you want to achieve?"
+                aria-label="Goal title"
+                disabled={serverBusy}
+                className="min-w-0 flex-1 bg-transparent text-[14.5px] text-ink outline-none placeholder:text-ink-mute"
+              />
+              <button
+                type="button"
+                onClick={() => void addGoal()}
+                disabled={serverBusy}
+                className={cn(
+                  "grid h-9 w-9 shrink-0 place-items-center rounded-[9px]",
+                  "bg-accent text-canvas transition-opacity hover:opacity-90",
+                  "disabled:opacity-50"
+                )}
+                aria-label="Add long-term goal"
+              >
+                <PlusIcon size={15} strokeWidth={2.4} />
+              </button>
+            </div>
+            {composerOpen && (
+              <div className="space-y-2 border-t border-line-subtle px-2.5 pb-2.5 pt-2.5">
                 <input
-                  ref={addInputRef}
                   type="text"
-                  value={draft}
-                  onChange={(event) => setDraft(event.target.value)}
+                  value={draftDescription}
+                  onChange={(event) => setDraftDescription(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") void addGoal();
                   }}
-                  placeholder="Add a long-term goal..."
+                  placeholder="Optional notes"
+                  aria-label="Goal notes"
                   disabled={serverBusy}
-                  className={cn(
-                    "min-w-0 flex-1 rounded-[10px] border border-line bg-fill-soft",
-                    "px-3 py-2.5 text-sm text-ink placeholder:text-ink-mute",
-                    "outline-none transition-colors focus:border-accent/45"
-                  )}
+                  className="w-full rounded-[8px] border border-line bg-fill-soft px-2.5 py-2 text-xs text-ink outline-none placeholder:text-ink-dim focus:border-accent/45"
                 />
+                <div className="flex flex-wrap items-center gap-2">
+                  <PriorityChips
+                    value={draftPriority}
+                    onChange={setDraftPriority}
+                    groupLabel="New goal priority"
+                  />
+                  <div className="flex-1" />
+                  <input
+                    type="date"
+                    value={draftDeadline}
+                    onChange={(event) => setDraftDeadline(event.target.value)}
+                    aria-label="New goal deadline"
+                    disabled={serverBusy}
+                    className="rounded-[8px] border border-line bg-fill-soft px-2 py-1.5 text-xs text-ink outline-none focus:border-accent/45"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {serverError && <p className="mb-3 text-xs text-error">{serverError}</p>}
+
+        {displayGoals.length === 0 ? (
+          <GoalsEmptyState
+            serverBacked={serverBacked}
+            showAddPill={!readOnly}
+            onAddClick={() => addInputRef.current?.focus()}
+          />
+        ) : serverBacked ? (
+          <div className="grid items-start gap-3 lg:grid-cols-2">
+            {displayGoals.map((goal, index) => (
+              <GoalCard
+                key={goal.id}
+                goal={goal}
+                index={index}
+                progress={progressByGoalId?.[goal.id] ?? { total: 0, done: 0 }}
+                linkedTasks={linkedTasksByGoalId[goal.id] ?? []}
+                busy={serverBusy}
+                canEdit={Boolean(onUpdateServerGoal)}
+                editing={editingGoalId === goal.id}
+                onBeginEdit={() => beginEdit(goal)}
+                onOpenTask={onOpenTask}
+                onRemove={() => void removeGoal(goal.id)}
+                editFields={{
+                  description: editDescription,
+                  deadline: editDeadline,
+                  priority: editPriority,
+                  setDescription: setEditDescription,
+                  setDeadline: setEditDeadline,
+                  setPriority: setEditPriority,
+                }}
+                onSaveEdit={() => void saveEdit(goal)}
+                onCancelEdit={() => setEditingGoalId(null)}
+              />
+            ))}
+          </div>
+        ) : (
+          <Reorder.Group axis="y" values={goals} onReorder={setGoals} className="flex flex-col gap-2">
+            {goals.map((goal) => (
+              <Reorder.Item
+                key={goal.id}
+                value={goal}
+                whileDrag={{ scale: 1.01 }}
+                className={cn(
+                  "group flex items-center gap-3 rounded-[10px] border border-line-subtle",
+                  "bg-[var(--color-bg-elevated)] px-3 py-2.5 cursor-grab active:cursor-grabbing",
+                  "transition-colors hover:border-line-strong hover:bg-[var(--color-bg-floating)]"
+                )}
+              >
+                <span
+                  aria-hidden
+                  className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[9px] border border-line-subtle bg-[var(--color-bg-surface)] text-ink-mute"
+                >
+                  <NavGoalsGlyph size={16} />
+                </span>
+                <span className="min-w-0 flex-1 text-sm text-ink break-words">{goal.text}</span>
+                <GripHorizontalIcon size={14} strokeWidth={1.8} className="shrink-0 text-ink-dim opacity-60" />
                 <button
                   type="button"
-                  onClick={() => void addGoal()}
-                  disabled={serverBusy}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={() => void removeGoal(goal.id)}
+                  aria-label={`Delete goal: ${goal.text}`}
                   className={cn(
-                    "grid h-10 w-10 shrink-0 place-items-center rounded-[10px]",
-                    "border border-[rgba(var(--color-accent-primary-rgb),0.4)]",
-                    "bg-[var(--color-accent-dim)] text-accent",
-                    "transition-colors hover:bg-[var(--color-accent-primary-muted)]"
+                    "flex-shrink-0 rounded-[6px] p-1.5",
+                    "text-ink-dim hover:text-error hover:bg-error-muted",
+                    "opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
                   )}
-                  aria-label="Add long-term goal"
                 >
-                  <PlusIcon size={15} strokeWidth={2.2} />
+                  <TrashIcon size={13} strokeWidth={1.8} />
                 </button>
-              </div>
-            )}
-            {serverError && <p className="mb-3 text-xs text-error">{serverError}</p>}
-
-            {displayGoals.length === 0 ? (
-              <GoalsEmptyState
-                serverBacked={serverBacked}
-                showAddPill={!readOnly}
-                onAddClick={() => addInputRef.current?.focus()}
-              />
-            ) : serverBacked ? (
-              <div className="flex flex-col gap-3">
-                {displayGoals.map((goal, index) => (
-                  <GoalCard
-                    key={goal.id}
-                    goal={goal}
-                    index={index}
-                    progress={progressByGoalId?.[goal.id] ?? { total: 0, done: 0 }}
-                    linkedTasks={linkedTasksByGoalId[goal.id] ?? []}
-                    busy={serverBusy}
-                    canEdit={Boolean(onUpdateServerGoal)}
-                    editing={editingGoalId === goal.id}
-                    onBeginEdit={() => beginEdit(goal)}
-                    onOpenTask={onOpenTask}
-                    onRemove={() => void removeGoal(goal.id)}
-                    editFields={{
-                      description: editDescription,
-                      deadline: editDeadline,
-                      priority: editPriority,
-                      setDescription: setEditDescription,
-                      setDeadline: setEditDeadline,
-                      setPriority: setEditPriority,
-                    }}
-                    onSaveEdit={() => void saveEdit(goal)}
-                    onCancelEdit={() => setEditingGoalId(null)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <Reorder.Group axis="y" values={goals} onReorder={setGoals} className="flex flex-col gap-2">
-                {goals.map((goal) => (
-                  <Reorder.Item
-                    key={goal.id}
-                    value={goal}
-                    whileDrag={{ scale: 1.01 }}
-                    className={cn(
-                      "group flex items-center gap-3 rounded-[10px] border border-line-subtle",
-                      "bg-[var(--color-bg-elevated)] px-3 py-2.5 cursor-grab active:cursor-grabbing",
-                      "transition-colors hover:border-line-strong hover:bg-[var(--color-bg-floating)]"
-                    )}
-                  >
-                    <span
-                      aria-hidden
-                      className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[9px] border border-line-subtle bg-[var(--color-bg-surface)] text-ink-mute"
-                    >
-                      <NavGoalsGlyph size={16} />
-                    </span>
-                    <span className="min-w-0 flex-1 text-sm text-ink break-words">{goal.text}</span>
-                    <GripHorizontalIcon size={14} strokeWidth={1.8} className="shrink-0 text-ink-dim opacity-60" />
-                    <button
-                      type="button"
-                      onPointerDown={(event) => event.stopPropagation()}
-                      onClick={() => void removeGoal(goal.id)}
-                      aria-label={`Delete goal: ${goal.text}`}
-                      className={cn(
-                        "flex-shrink-0 rounded-[6px] p-1.5",
-                        "text-ink-dim hover:text-error hover:bg-error-muted",
-                        "opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
-                      )}
-                    >
-                      <TrashIcon size={13} strokeWidth={1.8} />
-                    </button>
-                  </Reorder.Item>
-                ))}
-              </Reorder.Group>
-            )}
-          </section>
-
-          <aside
-            className="self-start rounded-[12px] border border-line-subtle bg-[var(--color-bg-elevated)] p-4"
-          >
-            <div className="mb-3 grid h-9 w-9 place-items-center rounded-[10px] bg-[var(--color-accent-dim)] text-accent">
-              <ArrowUpRightIcon size={16} strokeWidth={1.8} />
-            </div>
-            <p className="text-[13.5px] font-semibold text-ink">Keep it spare</p>
-            <p className="mt-1.5 text-xs leading-5 text-ink-mute">
-              This list is for goals that should guide the timeline without becoming daily tasks yet.
-            </p>
-          </aside>
-        </div>
+              </Reorder.Item>
+            ))}
+          </Reorder.Group>
+        )}
       </div>
+    </div>
+  );
+}
+
+function PriorityChips({
+  value,
+  onChange,
+  groupLabel,
+}: {
+  value: "p1" | "p2" | "p3" | undefined;
+  onChange: (value: "p1" | "p2" | "p3" | undefined) => void;
+  groupLabel: string;
+}) {
+  return (
+    <div className="flex gap-1.5" role="group" aria-label={groupLabel}>
+      {(["p1", "p2", "p3"] as const).map((p) => {
+        const active = value === p;
+        return (
+          <button
+            key={p}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onChange(active ? undefined : p)}
+            className="rounded-[6px] px-2.5 py-1.5 text-xs"
+            style={{
+              border: `1px solid ${active ? "var(--color-accent-primary)" : "var(--color-border-default)"}`,
+              background: active ? "var(--color-accent-dim)" : "var(--color-bg-elevated)",
+              color: active ? "var(--color-accent-primary)" : "var(--color-text-muted)",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            {p.toUpperCase()}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -573,28 +685,12 @@ function GoalCard({
             </label>
             <div className="text-[10px] uppercase tracking-[0.1em] text-ink-dim">
               Priority
-              <div className="mt-1 flex gap-1.5" role="group" aria-label={`Priority for ${goal.text}`}>
-                {(["p1", "p2", "p3"] as const).map((value) => {
-                  const active = editFields.priority === value;
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => editFields.setPriority(active ? undefined : value)}
-                      className="rounded-[6px] px-2.5 py-1.5 text-xs"
-                      style={{
-                        border: `1px solid ${active ? "var(--color-accent-primary)" : "var(--color-border-default)"}`,
-                        background: active ? "var(--color-accent-dim)" : "var(--color-bg-elevated)",
-                        color: active ? "var(--color-accent-primary)" : "var(--color-text-muted)",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                      }}
-                    >
-                      {value.toUpperCase()}
-                    </button>
-                  );
-                })}
+              <div className="mt-1">
+                <PriorityChips
+                  value={editFields.priority}
+                  onChange={editFields.setPriority}
+                  groupLabel={`Priority for ${goal.text}`}
+                />
               </div>
             </div>
           </div>

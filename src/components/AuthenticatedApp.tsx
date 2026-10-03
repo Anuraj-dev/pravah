@@ -190,7 +190,10 @@ export function AuthenticatedApp() {
   }, [allTasksForStats, goalLinks, webGoalsLinkingEnabled]);
 
   const handleCreateGoal = useCallback(
-    async (text: string) => {
+    async (
+      text: string,
+      fields?: { description?: string; deadline?: string; priority?: "p1" | "p2" | "p3" }
+    ) => {
       const goalId =
         typeof crypto !== "undefined" && "randomUUID" in crypto
           ? crypto.randomUUID()
@@ -198,6 +201,9 @@ export function AuthenticatedApp() {
       await upsertGoal({
         clientId: goalId,
         text,
+        description: fields?.description,
+        deadline: fields?.deadline,
+        priority: fields?.priority,
         createdAt: Date.now(),
       });
     },
