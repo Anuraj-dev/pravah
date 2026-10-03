@@ -18,7 +18,7 @@ BarWidget {
   readonly property bool showCompleted: String(setting("showCompleted", "On")).toLowerCase() !== "off"
   // "watch" reads the snapshot `pravah watch` maintains instead of polling the
   // HTTP API. Writes stay on HTTP either way.
-  readonly property string transport: String(setting("transport", "cli")) === "watch" ? "watch" : "cli"
+  readonly property string transport: String(setting("transport", "watch")) === "watch" ? "watch" : "cli"
 
   // -------------------------------------------------------------- state ---
   property bool panelOpen: false
